@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<ruleset name="CustomRuleset">
+    <description>Custom PHP CodeSniffer Ruleset</description>
+    <!-- Include the base standard you want, such as PSR2 or PSR12 -->
+    <rule ref="PSR2">
+        <!-- Exclude the rule that requires the brace to be on the next line -->
+        <exclude name="PSR2.Classes.ClassDeclaration.OpenBraceNewLine" />
+    </rule>
+</ruleset>

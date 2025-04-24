@@ -1,11 +1,13 @@
-=== Optima Express + MarketBoost IDX Plugin ===
+=== Optima Express IDX ===
 Contributors: iHomefinder
-Tags: MLS, IDX, IDX Plugin, IDX Solutions, WordPress IDX, Real Estate, Multiple Listing Service, Optima Express
+Tags: MLS IDX Search, IDX Plugin, WordPress IDX, Real Estate, Real Estate Search
 Author URI: https://www.ihomefinder.com
 Plugin URI: https://www.ihomefinder.com/idx-plugin-for-wordpress/
 Requires at least: 4.2.0
-Tested up to: 6.4.2
-Stable tag: trunk
+Tested up to: 6.8
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Stable tag: 8.0.2
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -24,15 +26,6 @@ No framing, wrappers, or subdomains are required, so all IDX listing content is 
 A number of IDX pages are provided for your site, and many features including listing galleries, map search, market reports, and lead capture forms can be added to your own pages with shortcode. 
 
 All IDX content adopts the styling of your WordPress theme, and you can easily configure the look you want with design settings for photos, maps, colors and lead capture – or take it further with custom CSS.
-
-
-**FREE TRIAL**
-
-To start a 30-day free trial with sample listings, install the Optima Express plugin and follow the prompts to activate your free trial. No credit card is required. 
-
-[Learn how to activate your account >](https://www.ihomefinder.com/idx-plugin-for-wordpress?utm_source=WordPress&utm_medium=Affiliates&utm_campaign=plugin_repository_page)
-
-You can convert your trial account to a paid account at any time which will include listings from your MLS.
 
 
 **FEATURE HIGHLIGHTS**
@@ -77,7 +70,7 @@ You can contact us through live chat on [our website](https://www.ihomefinder.co
 == Frequently Asked Questions ==
 
 = Will the plugin work after I download and install it? =
-You need to register the plugin in order for it to work. You can enter a registration code for an existing paid account, create a free trial account with sample listings from California for demonstration purposes, or purchase a new paid account for your MLS by accessing the "Registration" section of the plugin menu within the WordPress Dashboard.
+You need to register the plugin in order for it to work. You can enter a registration code for an existing paid account, or purchase a new paid account for your MLS by accessing the "Registration" section of the plugin menu within the WordPress Dashboard.
 
 = How do I access my back-end Control Panel? =
 In your WordPress dashboard, go to the Optima Express plugin menu and select the "IDX Control Panel". From there you can manage IDX property search settings, manage your own listings, manage your leads, and more.
@@ -122,7 +115,7 @@ Our IDX property listing data is updated every two hours for most MLSs, and as f
 Please visit [our website](https://www.ihomefinder.com?utm_source=WordPress&utm_medium=Affiliates&utm_campaign=plugin_repository_page) to learn more about our plan options and pricing. 
 
 = Which WordPress themes do you recommend for use with Optima Express? =
-Optima Express is compatible with most WordPress themes, and will automatically inherit the styling of your chosen theme. Unlike many other IDX plugins for WordPress, Optima Express looks great without requiring any styling or other adjustments. We recommend using a free trial account to test any themes you may be considering. This also allows you to make adjustments and customizations to your account that are saved when you convert your trial to a paid account.
+Optima Express is compatible with most WordPress themes, and will automatically inherit the styling of your chosen theme. Unlike many other IDX plugins for WordPress, Optima Express looks great without requiring any styling or other adjustments.
 
 
 
@@ -153,6 +146,24 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Changelog ==
+
+
+= 8.0.2 =
+* Code optimization and sanitation
+
+= 8.0.1 =
+* Removed Free‑trial and updated registration screen
+* Resolved PHP fatal error
+* Resolved v9 registration issues
+* Minor bug fixes
+
+= 8.0.0 =
+* Upgrade Bootstrap to v5
+* Code optimization and sanitation
+* HTML and CSS updates
+
+= 7.7.0 =
+* WordPress 6.6.2 supported
 
 = 7.6.0 =
 * Removed City Links and Community Pages widgets in v10
@@ -610,6 +621,23 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Upgrade Notice ==
+
+= 8.0.2 =
+* Code optimization and sanitation
+
+= 8.0.1 =
+* Removed Free‑trial and updated registration screen
+* Resolved PHP fatal error
+* Resolved v9 registration issues
+* Minor bug fixes
+
+= 8.0.0 =
+* Upgrade Bootstrap to v5
+* Code optimization and sanitation
+* HTML and CSS updates
+
+= 7.7.0 =
+* WordPress 6.6.2 supported
 
 = 7.6.0 =
 * Removed City Links and Community Pages widgets in v10

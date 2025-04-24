@@ -41,3 +41,11 @@
 #ihf-main-container .postbox .handlediv {
 	float: left;
 }
+
+#ihf-main-container .radio-input {
+	margin-top: 3px;
+}
+
+#ihf-main-container .clipboard-button {
+	margin-top: 10px;
+}

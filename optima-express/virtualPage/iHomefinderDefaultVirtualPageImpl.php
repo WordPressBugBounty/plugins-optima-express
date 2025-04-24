@@ -1,5 +1,11 @@
 <?php
 
-class iHomefinderDefaultVirtualPageImpl extends iHomefinderAbstractVirtualPage {
-	
+if (! defined('ABSPATH')) {
+    exit; // Exit if accessed directly
+}
+
+
+class iHomefinderDefaultVirtualPageImpl extends iHomefinderAbstractVirtualPage
+{
+    
 }

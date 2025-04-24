@@ -1,9 +1,13 @@
 <?php
+if (! defined('ABSPATH')) {
+    exit; // Exit if accessed directly
+}
 
-class iHomefinderAbstractPropertyOrganizerVirtualPage extends iHomefinderAbstractVirtualPage {
-	
-	public function getPageTemplate() {
-		return get_option(iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_ORGANIZER_LOGIN, null);
-	}
-	
+class iHomefinderAbstractPropertyOrganizerVirtualPage extends iHomefinderAbstractVirtualPage
+{
+    
+    public function getPageTemplate()
+    {
+        return get_option(iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_ORGANIZER_LOGIN, null);
+    }
 }

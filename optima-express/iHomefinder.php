@@ -1,15 +1,30 @@
 <?php
-/*
-Plugin Name: Optima Express IDX Plugin
-Plugin URI: http://wordpress.org/extend/plugins/optima-express/
-Description: Adds MLS / IDX property search and listings to your site. Includes search and listing pages, widgets and shortcodes. Requires an IDX account from iHomefinder. Get a free trial account with sample IDX data, or a paid account with data from your MLS.
-Version: 7.6.0
-Author: ihomefinder
-Author URI: http://www.ihomefinder.com
-License: GPL
-*/
+if (! defined('ABSPATH')) {
+    exit; // Exit if accessed directly
+}
 
-include "iHomefinderAutoloader.php";
+/**
+ * Plugin Name: Optima Express IDX
+ * Plugin URI: http://wordpress.org/extend/plugins/optima-express/
+ * Description: Adds MLS / IDX property search and listings to your site.
+ * Includes search and listing pages, widgets and shortcodes.
+ * Requires an IDX account from iHomefinder.
+ * Get a paid account with data from your MLS.
+ * Version: 8.0.2
+ * Author: ihomefinder
+ * Author URI: http://www.ihomefinder.com
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * PHP Version: 7.4
+ *
+ * @category WordPress_Plugin
+ * @package  OptimaExpress
+ * @author   iHomefinder <support@ihomefinder.com>
+ * @license  GPL-2.0-or-later https://www.gnu.org/licenses/gpl-2.0.html
+ * @link     http://www.ihomefinder.com
+ */
+
+require "iHomefinderAutoloader.php";
 
 $autoloader = iHomefinderAutoloader::getInstance();
 $installer = iHomefinderInstaller::getInstance();
@@ -41,88 +56,91 @@ add_filter("jetpack_enable_open_graph", "__return_false");
 //Rewrite Rules
 add_action("init", array($rewriteRules, "initialize"), 1);
 
-if(is_admin()) {
-	add_action("admin_enqueue_scripts", array($admin, "addScripts"));
-	add_action("admin_menu", array($admin, "createAdminMenu"));
-	add_action("admin_init", array($installer, "upgrade"));
-	add_action("admin_init", array($admin, "registerSettings"));
-	//Adds functionality to the text editor for pages and posts
-	//Add buttons to text editor and initialize short codes
-	add_action("admin_init", array($shortcodeSelector, "addButtons"));
-	//add error check
-	add_action("admin_notices", array($admin, "checkError"));
+if (is_admin()) {
+    add_action("admin_enqueue_scripts", array($admin, "addScripts"));
+    add_action("admin_menu", array($admin, "createAdminMenu"));
+    add_action("admin_init", array($installer, "upgrade"));
+    add_action("admin_init", array($admin, "registerSettings"));
+    //Adds functionality to the text editor for pages and posts
+    //Add buttons to text editor and initialize short codes
+    add_action("admin_init", array($shortcodeSelector, "addButtons"));
+    //add error check
+    add_action("admin_notices", array($admin, "checkError"));
 } else {
-	/*
-	Call upgrade method on every non-admin page load. This is for the case that the plugin is updated through
-	multisite network admin	or if the plugin files were manually copied into wordpress.
-	*/
-	add_action("setup_theme", array($installer, "upgrade"));
-	add_action("setup_theme", array($stateManager, "setupLeadCaptureUser"));
-	add_action("init", array($enqueueResource, "enqueue"));
-	add_action("wp_head", array($enqueueResource, "getMetaTags"), -100);
-	add_action("wp_head", array($enqueueResource, "getHeader"));
-	add_action("wp_footer", array($enqueueResource, "getFooter"), -100);
-	
-	add_filter("page_template", array($virtualPageDispatcher, "getPageTemplate"));
-	add_filter("the_content", array($virtualPageDispatcher, "getContent"), 20);
-	add_filter("the_excerpt", array($virtualPageDispatcher, "getExcerpt"), 20);
-	
-	add_filter("the_posts", array($virtualPageDispatcher, "postCleanUp"), 20000);
-	add_filter("comments_array", array($virtualPageDispatcher, "clearComments"));
-	add_action("sm_buildmap", array($admin, "addSitemapForGoogleXmlSitemaps"));
-	add_filter("wpseo_sitemap_page_content", array($admin, "addSitemapForYoastWordPressSeo"));
+    /*
+    // Call upgrade method on every non-admin page load.
+    // This is for the case that the plugin is updated through
+    // multisite network admin or if the plugin files were manually copied into wordpress.
+    */
+    add_action("setup_theme", array($installer, "upgrade"));
+    add_action("setup_theme", array($stateManager, "setupLeadCaptureUser"));
+    add_action("init", array($enqueueResource, "enqueue"));
+    add_action("wp_head", array($enqueueResource, "getMetaTags"), -100);
+    add_action("wp_head", array($enqueueResource, "getHeader"));
+    add_action("wp_footer", array($enqueueResource, "getFooter"), -100);
+    
+    add_filter("page_template", array($virtualPageDispatcher, "getPageTemplate"));
+    add_filter("the_content", array($virtualPageDispatcher, "getContent"), 20);
+    add_filter("the_excerpt", array($virtualPageDispatcher, "getExcerpt"), 20);
+    
+    add_filter("the_posts", array($virtualPageDispatcher, "postCleanUp"), 20000);
+    add_filter("comments_array", array($virtualPageDispatcher, "clearComments"));
+    add_action("sm_buildmap", array($admin, "addSitemapForGoogleXmlSitemaps"));
+    add_filter("wpseo_sitemap_page_content", array($admin, "addSitemapForYoastWordPressSeo"));
 }
 
-//shortcode
+/* shortcode */
 add_action("init", array($shortcodeDispatcher, "initialize"));
 
-//widgets
-function optima_express_register_widgets() {
-	$displayRules = iHomefinderDisplayRules::getInstance();
-	if($displayRules->isPropertiesGalleryEnabled()) {
-		register_widget("iHomefinderPropertiesGallery");
-	}
-	if($displayRules->isQuickSearchEnabled()) {
-		register_widget("iHomefinderQuickSearchWidget");
-	}
-	if($displayRules->isSeoCityLinksEnabled()) {
-		register_widget("iHomefinderLinkWidget");
-	}
-	if($displayRules->isSearchByAddressEnabled()) {
-		register_widget("iHomefinderSearchByAddressWidget");
-	}
-	if($displayRules->isSearchByListingIdEnabled()) {
-		register_widget("iHomefinderSearchByListingIdWidget");
-	}
-	if($displayRules->isContactFormWidgetEnabled()) {
-		register_widget("iHomefinderContactFormWidget");
-	}
-	if($displayRules->isLoginWidgetSmallEnabled()) {
-		register_widget("iHomefinderLoginWidget");
-	}
-	if($displayRules->isMoreInfoEnabled()) {
-		register_widget("iHomefinderMoreInfoWidget");
-	}
-	if($displayRules->isMoreInfoEnabled()) {
-		register_widget("iHomefinderValuationWidget");
-	}
-	if($displayRules->isAgentBioWidgetEnabled()) {
-		register_widget("iHomefinderAgentBioWidget");
-	}
-	if($displayRules->isSocialEnabled()) {
-		register_widget("iHomefinderSocialWidget");
-	}
-	if($displayRules->isHotsheetListWidgetEnabled()) {
-		register_widget("iHomefinderHotsheetListWidget");
-	}
-	if($displayRules->isEmailSignupWidgetEnabled()) {
-		register_widget("iHomefinderEmailSignupFormWidget");
-	}
+/* Widgets */
+
+function optima_express_register_widgets()
+{
+    $displayRules = iHomefinderDisplayRules::getInstance();
+    if ($displayRules->isPropertiesGalleryEnabled()) {
+        register_widget("iHomefinderPropertiesGallery");
+    }
+    if ($displayRules->isQuickSearchEnabled()) {
+        register_widget("iHomefinderQuickSearchWidget");
+    }
+    if ($displayRules->isSeoCityLinksEnabled()) {
+        register_widget("iHomefinderLinkWidget");
+    }
+    if ($displayRules->isSearchByAddressEnabled()) {
+        register_widget("iHomefinderSearchByAddressWidget");
+    }
+    if ($displayRules->isSearchByListingIdEnabled()) {
+        register_widget("iHomefinderSearchByListingIdWidget");
+    }
+    if ($displayRules->isContactFormWidgetEnabled()) {
+        register_widget("iHomefinderContactFormWidget");
+    }
+    if ($displayRules->isLoginWidgetSmallEnabled()) {
+        register_widget("iHomefinderLoginWidget");
+    }
+    if ($displayRules->isMoreInfoEnabled()) {
+        register_widget("iHomefinderMoreInfoWidget");
+    }
+    if ($displayRules->isMoreInfoEnabled()) {
+        register_widget("iHomefinderValuationWidget");
+    }
+    if ($displayRules->isAgentBioWidgetEnabled()) {
+        register_widget("iHomefinderAgentBioWidget");
+    }
+    if ($displayRules->isSocialEnabled()) {
+        register_widget("iHomefinderSocialWidget");
+    }
+    if ($displayRules->isHotsheetListWidgetEnabled()) {
+        register_widget("iHomefinderHotsheetListWidget");
+    }
+    if ($displayRules->isEmailSignupWidgetEnabled()) {
+        register_widget("iHomefinderEmailSignupFormWidget");
+    }
 }
 
 add_action("widgets_init", "optima_express_register_widgets");
 
-//AJAX request handling
+/* AJAX */
 add_action("wp_ajax_nopriv_ihf_more_info_request", array($ajaxHandler, "requestMoreInfo"));
 add_action("wp_ajax_nopriv_ihf_schedule_showing", array($ajaxHandler, "scheduleShowing"));
 add_action("wp_ajax_nopriv_ihf_save_property", array($ajaxHandler, "saveProperty"));
@@ -168,7 +186,7 @@ add_action("wp_ajax_ihf_advanced_search_multi_selects", array($ajaxHandler, "adv
 add_action("wp_ajax_ihf_advanced_search_fields", array($ajaxHandler, "getAdvancedSearchFormFields")); //@deprecated
 add_action("wp_ajax_ihf_area_autocomplete", array($ajaxHandler, "getAutocompleteMatches")); //@deprecated
 
-//Disable canonical urls, because we use a single page to display all results and WordPress creates a single canonical url for all of the virtual urls like the detail page and featured results.
+// Disable canonical urls, because we use a single page to display all results and WordPress creates a single canonical url for all of the virtual urls like the detail page and featured results.
 remove_action("wp_head", "rel_canonical");
 
 add_action("template_redirect", array($enqueueResource, "outputHttpHeaders"));
