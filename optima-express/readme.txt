@@ -7,7 +7,7 @@ Requires at least: 4.2.0
 Tested up to: 6.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 8.0.2
+Stable tag: 8.0.3
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -147,6 +147,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 == Changelog ==
 
+
+= 8.0.3 =
+* Bug fix for PlatformMismatchError
 
 = 8.0.2 =
 * Code optimization and sanitation
@@ -621,6 +624,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Upgrade Notice ==
+
+= 8.0.3 =
+* Bug fix for PlatformMismatchError
 
 = 8.0.2 =
 * Code optimization and sanitation

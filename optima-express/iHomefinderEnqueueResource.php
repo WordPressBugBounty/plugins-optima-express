@@ -37,7 +37,7 @@ class iHomefinderEnqueueResource
             $stateManager = iHomefinderStateManager::getInstance();
             $config = [];
             $config["activationToken"] =  $admin->getActivationToken();
-            $config["platform"] = "WordPress";
+            $config["platform"] = "wordpress";
             if ($this->displayRules->isKestrelDetail()) {
                 $config["sessionId"] = $stateManager->getSessionId();
                 $config["leadCaptureUserId"] = $stateManager->getLeadCaptureUserId();
