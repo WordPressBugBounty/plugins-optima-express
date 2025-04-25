@@ -232,7 +232,7 @@ class iHomefinderPropertiesGallery extends iHomefinderWidget
             }
             echo $content; // this content it's a mix of HTML and JS
             if (!$this->displayRules->isKestrelAll()) {
-                echo wp_kses("<a href='" . $linkUrl. "'>" . $linkText . "</a>");
+                echo wp_kses("<a href='" . $linkUrl. "'>" . $linkText . "</a>", $allowed_html);
             }
             echo wp_kses($afterWidget, $allowed_html);
         }
