@@ -108,6 +108,11 @@ abstract class iHomefinderAbstractVirtualPage implements iHomefinderVirtualPageI
     protected function getText($optionName, $default = null)
     {
         $result = get_option($optionName, null);
+        // If the option value is '__NONE__', the user has explicitly chosen to suppress meta tags or text output.
+        // This prevents fallback/default content from being shown when the user wants a truly blank value.
+        if ( $result === '__NONE__' ) {
+            return '';
+        }
         if (empty($result)) {
             $result = $default;
         }

@@ -25,166 +25,154 @@ class iHomefinderAdminPageConfig extends iHomefinderAdminAbstractPage
     
     public function registerSettings()
     {
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_DEFAULT, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_DETAIL, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_SEARCH, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MAP_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MAP_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MAP_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MAP_SEARCH, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_ADVANCED_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_ADVANCED_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_ADVANCED_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_ADVANCED_SEARCH, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_ORGANIZER_LOGIN, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_ORGANIZER_LOGIN, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_ORGANIZER_LOGIN, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_ORGANIZER_LOGIN, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_EMAIL_UPDATES, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_EMAIL_UPDATES, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_EMAIL_UPDATES, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_EMAIL_UPDATES, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_FEATURED, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_FEATURED, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_FEATURED, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_FEATURED, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_HOT_SHEET_LISTING_REPORT, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_HOT_SHEET_LISTING_REPORT, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_HOT_SHEET_LISTING_REPORT, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_HOT_SHEET_LISTING_REPORT, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_HOT_SHEET_OPEN_HOME_REPORT, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_HOT_SHEET_OPEN_HOME_REPORT, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_HOT_SHEET_OPEN_HOME_REPORT, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_HOT_SHEET_OPEN_HOME_REPORT, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_HOT_SHEET_MARKET_REPORT, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_HOT_SHEET_MARKET_REPORT, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_HOT_SHEET_MARKET_REPORT, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_HOT_SHEET_MARKET_REPORT, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_HOT_SHEET_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_HOT_SHEET_LIST, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_CONTACT_FORM, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_CONTACT_FORM, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_CONTACT_FORM, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_CONTACT_FORM, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_VALUATION_FORM, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_VALUATION_FORM, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_VALUATION_FORM, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_VALUATION_FORM, array($this, 'sanitize_settings'));
+        $settings = array(
+            // Title Options
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MAP_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_ADVANCED_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_ORGANIZER_LOGIN,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_EMAIL_UPDATES,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_HOT_SHEET_LISTING_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_HOT_SHEET_OPEN_HOME_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_HOT_SHEET_MARKET_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_HOT_SHEET_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_CONTACT_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_VALUATION_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MORTGAGE_CALCULATOR,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_OPEN_HOME_SEARCH_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_SUPPLEMENTAL_LISTING,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_SOLD_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_PENDING_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_SOLD_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_OFFICE_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_OFFICE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_AGENT_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_AGENT_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_OFFICE_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_OFFICE_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_OFFICE_LIST_NAME_STARTS_WITH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_OFFICE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_MEMBER_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_MEMBER_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_MEMBER_LIST_LAST_NAME_STARTS_WITH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_MEMBER_DETAIL,
+            // Template Options
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_DEFAULT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MAP_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_ADVANCED_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_ORGANIZER_LOGIN,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_EMAIL_UPDATES,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_HOT_SHEET_LISTING_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_HOT_SHEET_OPEN_HOME_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_HOT_SHEET_MARKET_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_CONTACT_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_VALUATION_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MORTGAGE_CALCULATOR,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_OPEN_HOME_SEARCH_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_SUPPLEMENTAL_LISTING,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_SOLD_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_PENDING_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_SOLD_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_OFFICE_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_OFFICE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_AGENT_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_AGENT_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_OFFICE_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_OFFICE_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_OFFICE_LIST_NAME_STARTS_WITH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_OFFICE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_MEMBER_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_MEMBER_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_MEMBER_LIST_LAST_NAME_STARTS_WITH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_MEMBER_DETAIL,
+            // Permalink Text Options
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MAP_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_ADVANCED_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_ORGANIZER_LOGIN,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_EMAIL_UPDATES,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_HOT_SHEET_LISTING_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_HOT_SHEET_OPEN_HOME_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_HOT_SHEET_MARKET_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_CONTACT_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_VALUATION_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MORTGAGE_CALCULATOR,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_OPEN_HOME_SEARCH_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_SUPPLEMENTAL_LISTING,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_SOLD_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_PENDING_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_SOLD_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_OFFICE_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_OFFICE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_AGENT_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_AGENT_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_OFFICE_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_OFFICE_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_OFFICE_LIST_NAME_STARTS_WITH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_OFFICE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_MEMBER_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_MEMBER_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_MEMBER_LIST_LAST_NAME_STARTS_WITH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_MEMBER_DETAIL,
+            // Meta Tags Options
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MAP_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_ADVANCED_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_ORGANIZER_LOGIN,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_EMAIL_UPDATES,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_HOT_SHEET_LISTING_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_HOT_SHEET_OPEN_HOME_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_HOT_SHEET_MARKET_REPORT,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_HOT_SHEET_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_CONTACT_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_VALUATION_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MORTGAGE_CALCULATOR,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_OPEN_HOME_SEARCH_FORM,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_SUPPLEMENTAL_LISTING,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_SOLD_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_PENDING_FEATURED,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_SOLD_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_OFFICE_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_OFFICE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_AGENT_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_AGENT_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_OFFICE_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_OFFICE_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_OFFICE_LIST_NAME_STARTS_WITH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_OFFICE_DETAIL,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_SEARCH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_LIST,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_LIST_LAST_NAME_STARTS_WITH,
+            iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_DETAIL,
+        );
 
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MORTGAGE_CALCULATOR, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MORTGAGE_CALCULATOR, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MORTGAGE_CALCULATOR, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MORTGAGE_CALCULATOR, array($this, 'sanitize_settings'));
-
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_OPEN_HOME_SEARCH_FORM, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_OPEN_HOME_SEARCH_FORM, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_OPEN_HOME_SEARCH_FORM, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_OPEN_HOME_SEARCH_FORM, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_SUPPLEMENTAL_LISTING, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_SUPPLEMENTAL_LISTING, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_SUPPLEMENTAL_LISTING, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_SUPPLEMENTAL_LISTING, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_SOLD_FEATURED, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_SOLD_FEATURED, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_SOLD_FEATURED, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_SOLD_FEATURED, array($this, 'sanitize_settings'));
-
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_PENDING_FEATURED, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_PENDING_FEATURED, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_PENDING_FEATURED, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_PENDING_FEATURED, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_SOLD_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_SOLD_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_SOLD_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_SOLD_DETAIL, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_OFFICE_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_OFFICE_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_OFFICE_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_OFFICE_LIST, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_OFFICE_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_OFFICE_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_OFFICE_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_OFFICE_DETAIL, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_AGENT_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_AGENT_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_AGENT_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_AGENT_LIST, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_AGENT_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_AGENT_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_AGENT_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_AGENT_DETAIL, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_OFFICE_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_OFFICE_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_OFFICE_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_OFFICE_SEARCH, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_OFFICE_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_OFFICE_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_OFFICE_LIST, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_OFFICE_LIST, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_OFFICE_LIST_NAME_STARTS_WITH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_OFFICE_LIST_NAME_STARTS_WITH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_OFFICE_LIST_NAME_STARTS_WITH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_OFFICE_LIST_NAME_STARTS_WITH, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_OFFICE_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_OFFICE_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_OFFICE_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_OFFICE_DETAIL, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_MEMBER_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_MEMBER_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_MEMBER_SEARCH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_SEARCH, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_MEMBER_LIST, array($this, 'sanitize_settings'), array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_MEMBER_LIST, array($this, 'sanitize_settings'), array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_MEMBER_LIST, array($this, 'sanitize_settings'), array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_LIST, array($this, 'sanitize_settings'), array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_MEMBER_LIST_LAST_NAME_STARTS_WITH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_MEMBER_LIST_LAST_NAME_STARTS_WITH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_MEMBER_LIST_LAST_NAME_STARTS_WITH, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_LIST_LAST_NAME_STARTS_WITH, array($this, 'sanitize_settings'));
-        
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_MLS_PORTAL_BOARD_MEMBER_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_TEMPLATE_MLS_PORTAL_BOARD_MEMBER_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_PERMALINK_TEXT_MLS_PORTAL_BOARD_MEMBER_DETAIL, array($this, 'sanitize_settings'));
-        register_setting(iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG, iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_DETAIL, array($this, 'sanitize_settings'));
+        foreach ($settings as $option) {
+            register_setting(
+                iHomefinderConstants::OPTION_VIRTUAL_PAGE_CONFIG,
+                $option,
+                array(
+                    // Register each setting with a custom sanitize callback that receives the option name.
+                    // This allows us to apply different sanitization logic depending on the type of setting (title, template, meta tags, etc).
+                    // Using a closure here ensures the correct $option is available inside sanitize_settings.
+                    'sanitize_callback' => function($input) use ($option) {
+                        return $this->sanitize_settings($input, $option);
+                    }
+                )
+            );
+        }
     }
     
-    public function sanitize_settings($input)
+    public function sanitize_settings($input, $option = '')
     {
-        $option = isset($_REQUEST['option']) ? $_REQUEST['option'] : '';
-
         switch ($option) {
             // Title Options
             case iHomefinderConstants::OPTION_VIRTUAL_PAGE_TITLE_DETAIL:
@@ -318,8 +306,25 @@ class iHomefinderAdminPageConfig extends iHomefinderAdminAbstractPage
             case iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_SEARCH:
             case iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_LIST:
             case iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_LIST_LAST_NAME_STARTS_WITH:
-            case iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_DETAIL:
-                return wp_kses_post($input);
+            case iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_DETAIL: {
+                if (empty($input)) {
+                    // We use the special value '__NONE__' to explicitly indicate that the user has not set any custom meta tags for this page.
+                    // This is necessary because, by default, the plugin may output fallback meta tags if the option is empty or unset.
+                    // By saving '__NONE__', we can reliably distinguish between "no user customization" and "user intentionally wants no meta tags",
+                    // allowing us to suppress default meta tags only when appropriate and avoid confusion or duplicate output.
+                    return '__NONE__'; 
+                }
+                $allowed_tags = array(
+                    'meta' => array(
+                        'name' => true,
+                        'content' => true,
+                        'property' => true,
+                        'http-equiv' => true,
+                        'charset' => true,
+                    ),
+                );
+                return wp_kses($input, $allowed_tags);
+            }
 
             // Default Sanitization
             default:
