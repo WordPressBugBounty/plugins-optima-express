@@ -7,7 +7,7 @@ Requires at least: 4.2.0
 Tested up to: 6.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 8.0.5
+Stable tag: 8.1.0
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -146,6 +146,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Changelog ==
+
+= 8.1.0 =
+* Improved social media sharing for agent bio pages - when sharing agent profiles on Facebook and other social platforms, previews now properly display agent photo, name, title, and contact information
 
 = 8.0.5 =
 * Resolved issue that prevented users from saving meta tag changes to IDX Pages
@@ -629,6 +632,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Upgrade Notice ==
+
+= 8.1.0 =
+* Improved social media sharing for agent bio pages - when sharing agent profiles on Facebook and other social platforms, previews now properly display agent photo, name, title, and contact information
 
 = 8.0.5 =
 * Resolved issue that prevented users from saving meta tag changes to IDX Pages

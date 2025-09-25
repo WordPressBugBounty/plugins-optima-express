@@ -31,13 +31,19 @@ class iHomefinderMlsPortalBoardMemberDetailVirtualPageImpl extends iHomefinderAb
         $variableUtility = iHomefinderVariableUtility::getInstance();
         return array(
         $variableUtility->getAgentName(),
-        $variableUtility->getAgentDesignation()
+        $variableUtility->getAgentDesignation(),
+        $variableUtility->getAgentPhoto(),
+        $variableUtility->getAgentEmail(),
+        $variableUtility->getAgentCellPhone(),
+        $variableUtility->getAgentOfficePhone(),
         );
     }
 
     public function getMetaTags()
     {
-        $default = "<meta name=\"description\" content=\"\" />\n";
+        $default = "<meta property=\"og:image\" content=\"{agentPhoto}\" />
+        \n<meta property=\"og:title\" content=\"{agentName}, {agentDesignation}\" />
+        \n<meta name=\"description\" content=\"Contact - Mobile: {agentCellPhone} | Office: {agentOfficePhone} | Email: {agentEmail}\" />\n";
         return $this->getText(iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_MLS_PORTAL_BOARD_MEMBER_DETAIL, $default);
     }
     

@@ -151,6 +151,26 @@ class iHomefinderVariableUtility
     {
         return new iHomefinderVariable("agentDesignation", null, "Agent Designation");
     }
+
+    public function getAgentPhoto()
+    {
+        return new iHomefinderVariable("agentPhoto", null, "Agent Photo");
+    }
+
+    public function getAgentEmail()
+    {
+        return new iHomefinderVariable("agentEmail", null, "Agent Email");
+    }
+
+    public function getAgentCellPhone()
+    {
+        return new iHomefinderVariable("agentCellPhone", null, "Agent Cell Phone Number");
+    }
+
+    public function getAgentOfficePhone()
+    {
+        return new iHomefinderVariable("agentOfficePhone", null, "Agent Office Phone Number");
+    }
     
     public function getOfficeId()
     {
