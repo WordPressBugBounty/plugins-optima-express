@@ -12,6 +12,8 @@ jQuery(document).on("ready", function () {
         $formField.attr("value", fileUrl);
         $formImage.attr("src", fileUrl);
         $formImage.show();
+        // Unbind all events from ThickBox elements to prevent jQuery conflicts with script concatenation
+        jQuery("#TB_window, #TB_ajaxContent, #TB_overlay").off();
         tb_remove();
       }
       window.send_to_editor = window.original_send_to_editor;
@@ -34,7 +36,6 @@ jQuery(document).on("ready", function () {
     return false;
   });
 });
-
 var ihfSelectAllCheckboxesReset = function (
   selectAllCheckbox,
   checkBoxesContainer
@@ -56,7 +57,6 @@ var ihfSelectAllCheckboxesReset = function (
     jQuery("#" + selectAllCheckbox).removeAttr("checked");
   }
 };
-
 var ihfSelectAllCheckboxes = function (selectAllCheckbox, checkBoxesContainer) {
   if (jQuery("#" + selectAllCheckbox).attr("checked")) {
     jQuery("#" + checkBoxesContainer)
@@ -72,7 +72,6 @@ var ihfSelectAllCheckboxes = function (selectAllCheckbox, checkBoxesContainer) {
       });
   }
 };
-
 var ihfVariablesAutocomplete = function (fieldId, variables, prefix, suffix) {
   var $field = jQuery("#" + fieldId);
   $field.autocomplete({

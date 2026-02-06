@@ -176,35 +176,175 @@ class iHomefinderAdmin {
     {
         return isset($input) ? true : false;
     }
-
-    public function addScripts()
-    {
+    public function addScripts() {
         $pages = array(
-        iHomefinderConstants::PAGE_INFORMATION,
-        iHomefinderConstants::PAGE_ACTIVATE,
-        iHomefinderConstants::PAGE_IDX_CONTROL_PANEL,
-        iHomefinderConstants::PAGE_IDX_PAGES,
-        iHomefinderConstants::PAGE_CONFIGURATION,
-        iHomefinderConstants::PAGE_BIO,
-        iHomefinderConstants::PAGE_SOCIAL,
-        iHomefinderConstants::PAGE_EMAIL_BRANDING,
-        iHomefinderConstants::PAGE_COMMUNITY_PAGES,
-        iHomefinderConstants::PAGE_SEO_CITY_LINKS
+            iHomefinderConstants::PAGE_INFORMATION,
+            iHomefinderConstants::PAGE_ACTIVATE,
+            iHomefinderConstants::PAGE_IDX_CONTROL_PANEL,
+            iHomefinderConstants::PAGE_IDX_PAGES,
+            iHomefinderConstants::PAGE_CONFIGURATION,
+            iHomefinderConstants::PAGE_BIO,
+            iHomefinderConstants::PAGE_SOCIAL,
+            iHomefinderConstants::PAGE_EMAIL_BRANDING,
+            iHomefinderConstants::PAGE_COMMUNITY_PAGES,
+            iHomefinderConstants::PAGE_SEO_CITY_LINKS
         );
-        if (array_key_exists("page", $_GET)) {
-            $page = $_GET["page"];
-            $result = array_search($page, $pages);
-            if ($result !== false && $result >= 0) {
-                wp_enqueue_script("jquery");
-                wp_enqueue_script("jquery-ui-core");
-                wp_enqueue_script("jquery-ui-autocomplete", "", array("jquery-ui-widget", "jquery-ui-position"));
-                wp_enqueue_script("jquery-ui-accordion", "", array("jquery-ui-widget", "jquery-ui-position"));
-                wp_enqueue_style("thickbox");
-                wp_enqueue_script("jquery-textrange", plugins_url("js/jquery-textrange.js", __FILE__), array("jquery"), iHomefinderConstants::VERSION);
-            }
+
+        $should_load = isset($_GET['page']) && array_search($_GET['page'], $pages, true) !== false;
+
+        if ( $should_load ) {
+            // jQuery + UI
+            wp_enqueue_script('jquery');
+            wp_enqueue_script('jquery-ui-core');
+            wp_enqueue_script('jquery-ui-widget');
+            wp_enqueue_script('jquery-ui-position');
+            wp_enqueue_script('jquery-ui-accordion');
+            wp_enqueue_script('jquery-ui-autocomplete');
+
+            // Thickbox (style + script)
+            wp_enqueue_style('thickbox');
+            wp_enqueue_script('thickbox');
+
+            // Other deps
+            wp_enqueue_script(
+                'jquery-textrange',
+                plugins_url('js/jquery-textrange.js', __FILE__),
+                array('jquery'),
+                iHomefinderConstants::VERSION,
+                true
+            );
+
+            // Your admin script (footer, and depends on thickbox so order is guaranteed)
+            wp_enqueue_script(
+                'oe-dashboard',
+                plugins_url('js/dashboard.js', __FILE__),
+                array('jquery', 'editor', 'media-upload', 'thickbox'),
+                iHomefinderConstants::VERSION,
+                true
+            );
+
+            // Inject the self-healing Thickbox patch AFTER oe-dashboard so it can't be overwritten
+            $tb_fix = <<<'JS'
+            (function($){
+            (function installThickboxFix(){
+                var $html = $('html');
+                var $body = $('body');
+
+                function rememberScrollState(){
+                if (typeof $body.data('tb-prev-overflow') === 'undefined') {
+                    $body.data('tb-prev-overflow', $body[0].style.overflow || null);
+                    $body.data('tb-prev-height',   $body[0].style.height   || null);
+                    $body.data('tb-prev-position', $body[0].style.position || null);
+                }
+                if (typeof $html.data('tb-prev-overflow') === 'undefined') {
+                    $html.data('tb-prev-overflow', $html[0].style.overflow || null);
+                    $html.data('tb-prev-height',   $html[0].style.height   || null);
+                }
+                }
+
+                function restoreScrollState(){
+                // Remove modal classes that might pin scroll via CSS
+                $body.removeClass('thickbox-open tb-open modal-open');
+                $html.removeClass('thickbox-open tb-open modal-open');
+
+                // Restore inline styles if we recorded them; otherwise clear
+                var bo = $body.data('tb-prev-overflow'); $body.css('overflow', bo == null ? '' : bo);
+                var bh = $body.data('tb-prev-height');   $body.css('height',   bh == null ? '' : bh);
+                var bp = $body.data('tb-prev-position'); $body.css('position', bp == null ? '' : bp);
+
+                var ho = $html.data('tb-prev-overflow'); $html.css('overflow', ho == null ? '' : ho);
+                var hh = $html.data('tb-prev-height');   $html.css('height',   hh == null ? '' : hh);
+
+                // Clear our saved data
+                $body.removeData('tb-prev-overflow tb-prev-height tb-prev-position');
+                $html.removeData('tb-prev-overflow tb-prev-height');
+
+                // If something still hijacked scroll, force-enable as a fallback
+                // (kept last to avoid fighting legitimate page styles)
+                if ( (getComputedStyle(document.documentElement).overflow || '').includes('hidden') ||
+                    (getComputedStyle(document.body).overflow || '').includes('hidden') ) {
+                    $html.css('overflow', 'auto');
+                    $body.css('overflow', 'auto');
+                }
+                }
+
+                function hardClose(){
+                try { $('#TB_window').trigger('tb_unload'); } catch(e){}
+                $('#TB_window, #TB_overlay, #TB_HideSelect, #TB_iframeContent').remove();
+                restoreScrollState();
+                }
+
+                function applyOnce(){
+                // Patch tb_remove
+                if (typeof window.tb_remove !== 'function' || !window.tb_remove.__tbPatched){
+                    function patchedRemove(){ hardClose(); }
+                    patchedRemove.__tbPatched = true;
+                    window.tb_remove = patchedRemove;
+                }
+
+                // Patch tb_show: start clean *and* remember scroll state before Thickbox locks it
+                if (typeof window.tb_show === 'function' && !window.tb_show.__tbPatched){
+                    var _show = window.tb_show;
+                    function patchedShow(){
+                    // If a previous TB is lingering, clean it first
+                    if ($('#TB_overlay').length || $('#TB_window').length) {
+                        hardClose();
+                    }
+                    rememberScrollState(); // capture html/body inline styles before TB sets overflow:hidden
+                    return _show.apply(this, arguments);
+                    }
+                    patchedShow.__tbPatched = true;
+                    window.tb_show = patchedShow;
+                }
+
+                // Bind overlay / X once
+                if (!window.__tbFixBound){
+                    $(document)
+                    .off('click.tbfix', '#TB_overlay, #TB_closeWindowButton, .tb-close, .tb-close-icon')
+                    .on('click.tbfix', '#TB_overlay, #TB_closeWindowButton, .tb-close, .tb-close-icon', function(e){
+                        e.preventDefault();
+                        hardClose();
+                        return false;
+                    });
+
+                    // Finish cleanup after TB does its removals
+                    $(document).off('tb_unload.tbfix').on('tb_unload.tbfix', function(){
+                    setTimeout(hardClose, 0);
+                    });
+
+                    window.__tbFixBound = true;
+                }
+                }
+
+                applyOnce();
+
+                // Re-apply if tb_show/tb_remove get overwritten
+                if (!window.__tbFixWatch){
+                try{
+                    var mo = new MutationObserver(function(){ applyOnce(); });
+                    mo.observe(document.documentElement, { childList:true, subtree:true });
+                    window.__tbFixWatch = mo;
+                }catch(e){
+                    window.__tbFixTimer = setInterval(applyOnce, 1500);
+                }
+                }
+
+                // Only nuke leftovers if an overlay is actually present
+                if ($('#TB_overlay').length || $('#TB_window').length) {
+                hardClose();
+                } else {
+                // Ensure scroll is normal on page load
+                restoreScrollState();
+                }
+            })();
+            })(jQuery);
+            JS;
+
+            wp_add_inline_script('oe-dashboard', $tb_fix, 'after');
+
+            // Admin CSS
+            wp_enqueue_style('oe-dashboard', plugins_url('css/dashboard.css', __FILE__), array(), iHomefinderConstants::VERSION);
         }
-        wp_enqueue_script("oe-dashboard", plugins_url("js/dashboard.js", __FILE__), array("jquery", "editor", "media-upload", "thickbox"), iHomefinderConstants::VERSION);
-        wp_enqueue_style("oe-dashboard", plugins_url("css/dashboard.css", __FILE__), null, iHomefinderConstants::VERSION);
     }
     
     /**

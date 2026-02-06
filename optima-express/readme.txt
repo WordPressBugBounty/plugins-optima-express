@@ -4,10 +4,10 @@ Tags: MLS IDX Search, IDX Plugin, WordPress IDX, Real Estate, Real Estate Search
 Author URI: https://www.ihomefinder.com
 Plugin URI: https://www.ihomefinder.com/idx-plugin-for-wordpress/
 Requires at least: 4.2.0
-Tested up to: 6.8.1
+Tested up to: 6.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 8.1.0
+Stable tag: 8.3.1
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -146,6 +146,15 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Changelog ==
+
+= 8.3.1 =
+* Bug fix for SEO plugins giving incorrect Canonical URL
+
+= 8.3.0 =
+* Resolved issues with Block themes support
+
+= 8.2.0 =
+* Bug fixes for OmniPress updates
 
 = 8.1.0 =
 * Improved social media sharing for agent bio pages - when sharing agent profiles on Facebook and other social platforms, previews now properly display agent photo, name, title, and contact information
@@ -632,6 +641,15 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Upgrade Notice ==
+
+= 8.3.1 =
+* Bug fix for SEO plugins giving incorrect Canonical URL
+
+= 8.3.0 =
+* Resolved issues with Block themes support
+
+= 8.2.0 =
+* Bug fixes for OmniPress updates
 
 = 8.1.0 =
 * Improved social media sharing for agent bio pages - when sharing agent profiles on Facebook and other social platforms, previews now properly display agent photo, name, title, and contact information
