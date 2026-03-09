@@ -835,6 +835,7 @@ class iHomefinderShortcodeSelector
                                         <span class="input-group-text">px</span>
                                     </div>
                                 </div>
+                                <?php if (!$this->displayRules->isKestrelAll()) { ?>
                                 <div class="mb-3">
                                     <label class="form-label">Height</label>
                                     <div class="input-group">
@@ -858,6 +859,7 @@ class iHomefinderShortcodeSelector
                                         </select>
                                     </div>
                                 </div>
+                                <?php } ?>
                                 <button class="btn btn-primary clipboard-button"><?php echo esc_html(
                                     $this->buttonText
                                 ); ?></button>
@@ -869,6 +871,7 @@ class iHomefinderShortcodeSelector
                                 <input type="hidden" name="slug" value="<?php echo esc_html(
                                     iHomefinderShortcodeDispatcher::EUREKA_SEARCH_SHORTCODE
                                 ); ?>" />
+                                <?php if (!$this->displayRules->isKestrelAll()) { ?>
                                 <div class="mb-3">
                                     <label class="form-label">Height (optional)</label>
                                     <div class="input-group">
@@ -892,6 +895,7 @@ class iHomefinderShortcodeSelector
                                         </select>
                                     </div>
                                 </div>
+                                <?php } ?>
                                 <button class="btn btn-primary clipboard-button"><?php echo esc_html(
                                     $this->buttonText
                                 ); ?></button>
