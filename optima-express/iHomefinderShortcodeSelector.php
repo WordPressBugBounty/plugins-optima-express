@@ -853,9 +853,9 @@ class iHomefinderShortcodeSelector
                                     <label class="form-label">Zoom Level</label>
                                     <div>
                                         <select class="form-control" name="zoom" required="required">
-                                            <option value="1">1</option>
-                                            <!-- Other zoom options -->
-                                            <option value="20">20</option>
+                                            <?php for ($i = 1; $i <= 20; $i++) { ?>
+                                                <option value="<?php echo esc_attr($i); ?>"<?php echo ($i === 10) ? ' selected="selected"' : ''; ?>><?php echo esc_html($i); ?></option>
+                                            <?php } ?>
                                         </select>
                                     </div>
                                 </div>
@@ -889,9 +889,9 @@ class iHomefinderShortcodeSelector
                                     <label class="form-label">Zoom Level</label>
                                     <div>
                                         <select class="form-control" name="zoom" required="required">
-                                            <option value="1">1</option>
-                                            <!-- Other zoom options -->
-                                            <option value="20">20</option>
+                                            <?php for ($i = 1; $i <= 20; $i++) { ?>
+                                                <option value="<?php echo esc_attr($i); ?>"<?php echo ($i === 10) ? ' selected="selected"' : ''; ?>><?php echo esc_html($i); ?></option>
+                                            <?php } ?>
                                         </select>
                                     </div>
                                 </div>

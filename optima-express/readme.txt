@@ -7,7 +7,7 @@ Requires at least: 4.2.0
 Tested up to: 6.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 8.4.0
+Stable tag: 8.5.0
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -146,6 +146,11 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Changelog ==
+
+= 8.5.0 =
+* Added full width custom template for Divi Theme
+* Fixed zoom level dropdown showing only the first and last values
+* Added compatibility with SEO plugins to prevent conflicting meta tags
 
 = 8.4.0 =
 * Removed shortcode search settings (height, center address, and zoom level) for v10
@@ -644,6 +649,11 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Upgrade Notice ==
+
+= 8.5.0 =
+* Added full width custom template for Divi Theme
+* Fixed zoom level dropdown showing only the first and last values
+* Added compatibility with SEO plugins to prevent conflicting meta tags
 
 = 8.4.0 =
 * Removed shortcode search settings (height, center address, and zoom level) for v10
