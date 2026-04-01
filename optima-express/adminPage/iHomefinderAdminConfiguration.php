@@ -45,6 +45,11 @@ class iHomefinderAdminConfiguration extends iHomefinderAdminAbstractPage
             iHomefinderConstants::NO_ID_OPTION,
             array($this, 'sanitize_settings')
         );
+        register_setting(
+            iHomefinderConstants::OPTION_GROUP_CONFIGURATION,
+            iHomefinderConstants::SEO_COMPAT_OPTION,
+            array($this, 'sanitize_settings')
+        );
     }
 
     public function sanitize_settings($input)
@@ -58,6 +63,7 @@ class iHomefinderAdminConfiguration extends iHomefinderAdminAbstractPage
             case iHomefinderConstants::SHADOW_DOM_HTML_OPTION:
                 return wp_kses_post($input);
             case iHomefinderConstants::NO_ID_OPTION:
+            case iHomefinderConstants::SEO_COMPAT_OPTION:
                 return sanitize_text_field($input);
             default:
                 return $input;
@@ -111,13 +117,31 @@ class iHomefinderAdminConfiguration extends iHomefinderAdminAbstractPage
                     <td>
                         <label for="<?php echo esc_attr(iHomefinderConstants::NO_ID_OPTION); ?>">Remove duplicate CSS IDs for widgets and shortcodes for improved accessibility</label>
                         <input
-                            type="checkbox" 
+                            type="checkbox"
         <?php if (get_option(iHomefinderConstants::NO_ID_OPTION, null) === "true") { ?>
                                 checked="checked"
         <?php } ?>
                             value="true"
                             name="<?php echo esc_attr(iHomefinderConstants::NO_ID_OPTION); ?>" id="<?php echo esc_attr(iHomefinderConstants::NO_ID_OPTION); ?>
                         ">
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for="<?php echo esc_attr(iHomefinderConstants::SEO_COMPAT_OPTION); ?>">Disable SEO Plugins on IDX Pages</label>
+                    </th>
+                    <td>
+                        <input type="hidden" name="<?php echo esc_attr(iHomefinderConstants::SEO_COMPAT_OPTION); ?>" value="false" />
+                        <input
+                            type="checkbox"
+<?php if (get_option(iHomefinderConstants::SEO_COMPAT_OPTION, 'true') !== 'false') { ?>
+                                checked="checked"
+<?php } ?>
+                            value="true"
+                            name="<?php echo esc_attr(iHomefinderConstants::SEO_COMPAT_OPTION); ?>"
+                            id="<?php echo esc_attr(iHomefinderConstants::SEO_COMPAT_OPTION); ?>"
+                        >
+                        <p class="description">Optima Express includes built-in SEO support for IDX pages. SEO plugins are not needed on these pages and can cause incorrect titles, descriptions, and social sharing previews.</p>
                     </td>
                 </tr>
             </table>

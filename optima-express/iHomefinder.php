@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
  * Includes search and listing pages, widgets and shortcodes.
  * Requires an IDX account from iHomefinder.
  * Get a paid account with data from your MLS.
- * Version: 8.5.1
+ * Version: 8.5.2
  * Author: ihomefinder
  * Author URI: http://www.ihomefinder.com
  * License: GPLv2 or later
@@ -93,6 +93,7 @@ if (is_admin()) {
     add_filter("comments_array", array($virtualPageDispatcher, "clearComments"));
     add_action("sm_buildmap", array($admin, "addSitemapForGoogleXmlSitemaps"));
     add_filter("wpseo_sitemap_page_content", array($admin, "addSitemapForYoastWordPressSeo"));
+    iHomefinderSeoCompat::initialize();
 }
 
 /* shortcode */
@@ -191,6 +192,46 @@ add_action("wp_ajax_ihf_tiny_mce_shortcode_dialog", array($shortcodeSelector, "g
 add_action("wp_ajax_ihf_advanced_search_multi_selects", array($ajaxHandler, "advancedSearchMultiSelects")); //@deprecated
 add_action("wp_ajax_ihf_advanced_search_fields", array($ajaxHandler, "getAdvancedSearchFormFields")); //@deprecated
 add_action("wp_ajax_ihf_area_autocomplete", array($ajaxHandler, "getAutocompleteMatches")); //@deprecated
+
+// Register IHF full-width template for Divi theme only
+add_filter('theme_page_templates', 'ihf_register_divi_full_width_template', 10, 3);
+
+/**
+ * Register the IHF Full Width template in the template dropdown,
+ * but only when the active theme is Divi.
+ *
+ * @param array    $templates  Existing page templates.
+ * @param WP_Theme $theme      Current theme object.
+ * @param WP_Post  $post       Current post object.
+ * @return array
+ */
+function ihf_register_divi_full_width_template($templates, $theme, $post)
+{
+    if (wp_get_theme()->get_template() === 'Divi') {
+        $templates['ihf-divi-full-width.php'] = 'Custom Blank (Full Width)';
+    }
+    return $templates;
+}
+
+// When the IHF full-width template is selected, serve our plugin's template file.
+add_filter('template_include', 'ihf_load_divi_full_width_template', 10);
+
+/**
+ * Load the plugin's IHF full-width template file when it is selected.
+ *
+ * @param string $template  Path to the template file WordPress resolved.
+ * @return string
+ */
+function ihf_load_divi_full_width_template($template)
+{
+    if (is_singular() && get_page_template_slug() === 'ihf-divi-full-width.php') {
+        $plugin_template = plugin_dir_path(__FILE__) . 'templates/ihf-divi-full-width.php';
+        if (file_exists($plugin_template)) {
+            return $plugin_template;
+        }
+    }
+    return $template;
+}
 
 // Disable canonical urls, because we use a single page to display all results and WordPress creates a single canonical url for all of the virtual urls like the detail page and featured results.
 remove_action("wp_head", "rel_canonical");

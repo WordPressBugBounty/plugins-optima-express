@@ -19,6 +19,7 @@ class iHomefinderAutoloader
     */
     private $classes = array(
     //core files
+    "iHomefinderSeoCompat" => "iHomefinderSeoCompat.php",
     "iHomefinderAdmin" => "iHomefinderAdmin.php",
     "iHomefinderAjaxHandler" => "iHomefinderAjaxHandler.php",
     "iHomefinderConstants" => "iHomefinderConstants.php",
