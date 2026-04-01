@@ -11,7 +11,7 @@ if (! defined('ABSPATH')) {
 interface iHomefinderConstants
 {
 
-    const VERSION = "8.5.0";
+    const VERSION = "8.4.0";
     const VERSION_NAME = "Optima Express";
     const EXTERNAL_URL = "www.idxhome.com/service/wordpress";
     const CONTROL_PANEL_EXTERNAL_URL = "secure.idxre.com/idx/guid";
@@ -242,7 +242,6 @@ interface iHomefinderConstants
     const SHADOW_DOM_HTML_OPTION = "ihf-shadow-dom-html";
     const SHADOW_DOM_CSS_OPTION = "ihf-shadow-dom-css";
     const NO_ID_OPTION = "ihf-no-id";
-    const SEO_COMPAT_OPTION = "ihf-seo-compat";
 
     /*
     * @deprecated

@@ -230,12 +230,6 @@ class iHomefinderVirtualPageDispatcher
 
         // Classic theme behavior: keep your original logic.
         if ( ! empty( $virtualPageTemplate ) ) {
-            // Check if this is a plugin-supplied template first.
-            $pluginTemplate = plugin_dir_path( __FILE__ ) . 'templates/' . basename( $virtualPageTemplate );
-            if ( file_exists( $pluginTemplate ) ) {
-                return $pluginTemplate;
-            }
-
             $found = locate_template( array( $virtualPageTemplate ) );
             if ( ! empty( $found ) ) {
                 return $found;
