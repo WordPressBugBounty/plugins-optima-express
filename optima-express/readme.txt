@@ -7,7 +7,7 @@ Requires at least: 4.2.0
 Tested up to: 6.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 8.3.1
+Stable tag: 8.6.0
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -146,6 +146,11 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Changelog ==
+
+= 8.6.0 =
+* Improved reliability of site provisioning when WP-Cron is disabled
+* Added support for FAQ structured data (JSON-LD) injection
+* Early access: AI Blog Post Generator for AI-powered content creation
 
 = 8.5.2 =
 * Added full width custom template for Divi Theme
@@ -658,6 +663,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 == Upgrade Notice ==
 
+= 8.6.0 =
+Includes provisioning improvements, FAQ structured data support, and early access to the AI Blog Post Generator.
+
 = 8.5.2 =
 * Added full width custom template for Divi Theme
 * Fixed zoom level dropdown showing only the first and last values
@@ -672,7 +680,7 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 * Added compatibility with SEO plugins to prevent conflicting meta tags
 
 = 8.4.0 =
-* Hide search settings from Kestrel
+* Removed shortcode search settings (height, center address, and zoom level) for v10
 
 = 8.3.1 =
 * Bug fix for SEO plugins giving incorrect Canonical URL

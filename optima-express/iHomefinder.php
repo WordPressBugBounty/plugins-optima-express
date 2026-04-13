@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
  * Includes search and listing pages, widgets and shortcodes.
  * Requires an IDX account from iHomefinder.
  * Get a paid account with data from your MLS.
- * Version: 8.5.2
+ * Version: 8.6.0
  * Author: ihomefinder
  * Author URI: http://www.ihomefinder.com
  * License: GPLv2 or later
@@ -46,6 +46,73 @@ register_deactivation_hook(__FILE__, array($installer, "remove"));
 //Runs just before the auto upgrader installs the plugin
 add_filter("upgrader_post_install", array($installer, "upgrade"), 10, 2);
 
+// Multisite network provisioning — ensures all sub-sites get registered with ihf-root
+// on network-level plugin upgrade or activation, without requiring per-site admin action.
+if (is_multisite()) {
+    // Cron action handler — registered in the main bootstrap path so it is available
+    // when WP-Cron fires the event in a separate HTTP context.
+    add_action('ihf_oe_network_provision', array($installer, 'upgradeNetwork'));
+
+    // Schedules a network provisioning sweep via WP-Cron, or runs it synchronously
+    // when WP-Cron is disabled (e.g. DISABLE_WP_CRON = true with an external cron runner).
+    $scheduleOrRunNetworkProvision = function () use ($installer) {
+        if (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON) {
+            $installer->upgradeNetwork();
+        } elseif (!wp_next_scheduled('ihf_oe_network_provision')) {
+            wp_schedule_single_event(time(), 'ihf_oe_network_provision');
+        }
+    };
+
+    // Schedule a network provisioning sweep when this plugin is updated via the network admin.
+    add_action('upgrader_process_complete', function ($upgrader, $hook_extra) use ($scheduleOrRunNetworkProvision) {
+        if (
+            !isset($hook_extra['type'], $hook_extra['action']) ||
+            $hook_extra['type'] !== 'plugin' ||
+            $hook_extra['action'] !== 'update'
+        ) {
+            return;
+        }
+        $slug = plugin_basename(__FILE__);
+        $inSingular = isset($hook_extra['plugin']) && $hook_extra['plugin'] === $slug;
+        $inPlural   = isset($hook_extra['plugins']) && in_array($slug, $hook_extra['plugins'], true);
+        if ($inSingular || $inPlural) {
+            $scheduleOrRunNetworkProvision();
+        }
+    }, 10, 2);
+
+    // Schedule a network provisioning sweep when this plugin is network-activated.
+    add_action('activated_plugin', function ($plugin) use ($scheduleOrRunNetworkProvision) {
+        if (is_network_admin() && $plugin === plugin_basename(__FILE__)) {
+            $scheduleOrRunNetworkProvision();
+        }
+    });
+
+    // Provision new sub-sites when they are created, if an activation token is already set.
+    add_action('wp_initialize_site', function ($new_site) {
+        if (!function_exists('is_plugin_active_for_network')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        if (!is_plugin_active_for_network(plugin_basename(__FILE__))) {
+            return;
+        }
+        switch_to_blog($new_site->blog_id);
+        try {
+            $activationToken = get_option(iHomefinderConstants::ACTIVATION_TOKEN_OPTION);
+            if (!empty($activationToken)) {
+                iHomefinderAdmin::getInstance()->activateAuthenticationToken();
+            }
+        } catch (Exception $e) {
+            error_log(sprintf(
+                '[Optima Express] New site provisioning failed for site %d: %s',
+                $new_site->blog_id,
+                $e->getMessage()
+            ));
+        } finally {
+            restore_current_blog();
+        }
+    });
+}
+
 //disable JetPack"s OG tags
 add_filter("jetpack_enable_open_graph", "__return_false");
 
@@ -55,6 +122,12 @@ add_filter("jetpack_enable_open_graph", "__return_false");
 
 //Rewrite Rules
 add_action("init", array($rewriteRules, "initialize"), 1);
+
+// REST API — registered outside is_admin() because WordPress sets is_admin()
+// to false for REST requests, so the hook would never fire if placed inside it.
+add_action("rest_api_init", function() {
+    iHomefinderRestController::getInstance()->registerRoutes();
+});
 
 if (is_admin()) {
     add_action("admin_enqueue_scripts", array($admin, "addScripts"));
@@ -78,6 +151,19 @@ if (is_admin()) {
     add_action("wp_head", array($enqueueResource, "getMetaTags"), -100);
     add_action("wp_head", array($enqueueResource, "getHeader"));
     add_action("wp_footer", array($enqueueResource, "getFooter"), -100);
+    add_action("wp_head", function() {
+        if (!is_singular()) {
+            return;
+        }
+        // get_queried_object_id() is used instead of get_the_ID() because wp_head
+        // fires before the loop, where get_the_ID() is not guaranteed reliable.
+        $faqScript = get_post_meta(get_queried_object_id(), "_oe_faq_json_ld", true);
+        if (!empty($faqScript)) {
+            // Output unescaped: content was validated as a well-formed JSON-LD script
+            // block by sanitizeFaqScript() on write; kses would strip the script tag.
+            echo "\n" . $faqScript . "\n";
+        }
+    });
     
     add_action( 'wp', array( $virtualPageDispatcher, 'setupVirtualGlobals' ), 0 );
     add_filter( 'posts_pre_query', array( $virtualPageDispatcher, 'shortCircuitVirtualPosts' ), 10, 2 );

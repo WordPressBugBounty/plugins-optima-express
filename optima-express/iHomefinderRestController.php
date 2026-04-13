@@ -101,9 +101,10 @@ class iHomefinderRestController
     public function createBlogPost($request)
     {
         // 1. Extract and sanitize top-level fields
-        $title   = sanitize_text_field($request->get_param("title"));
-        $content = wp_kses_post($request->get_param("content"));
-        $slug    = sanitize_title($request->get_param("slug"));
+        $title     = sanitize_text_field($request->get_param("title"));
+        $content   = wp_kses_post($request->get_param("content"));
+        $slug      = sanitize_title($request->get_param("slug"));
+        $faqScript = $this->sanitizeFaqScript($request->get_param("faq_script"));
 
         $allowedStatuses = array("draft", "pending", "private", "publish");
         $status = $request->get_param("status");
@@ -157,7 +158,12 @@ class iHomefinderRestController
             );
         }
 
-        // 5. Set featured image if provided
+        // 5. Store FAQ JSON-LD for wp_head injection
+        if ($faqScript !== null) {
+            update_post_meta($postId, "_oe_faq_json_ld", $faqScript);
+        }
+
+        // 6. Set featured image if provided
         $featuredMediaId = $request->get_param('featured_media_id');
         if ($featuredMediaId !== null) {
             $featuredMediaId = (int) $featuredMediaId;
@@ -173,7 +179,7 @@ class iHomefinderRestController
             }
         }
 
-        // 6. Write SEO metadata
+        // 7. Write SEO metadata
         $seoFieldsWritten = false;
         $seoPlugin        = "none";
 
@@ -182,7 +188,7 @@ class iHomefinderRestController
             $seoFieldsWritten = true;
         }
 
-        // 7. Build and return the success response
+        // 8. Build and return the success response
         $draftUrl = $this->getDraftUrl($postId);
         $editUrl  = get_edit_post_link($postId, "raw");
 
@@ -449,6 +455,39 @@ class iHomefinderRestController
     // ---------------------------------------------------------------------------
     // Private helpers
     // ---------------------------------------------------------------------------
+
+    /**
+     * Validates and returns the faq_script value if it is a well-formed
+     * JSON-LD script block, or null if absent or invalid.
+     *
+     * Accepts only <script type="application/ld+json">...</script> blocks
+     * containing valid JSON. Rejects anything else to prevent arbitrary
+     * script injection.
+     *
+     * @param mixed $value
+     * @return string|null
+     */
+    private function sanitizeFaqScript($value)
+    {
+        if (empty($value) || !is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        if (!preg_match('/^<script\s+type=["\']application\/ld\+json["\'][^>]*>(.*)<\/script>$/si', $trimmed, $matches)) {
+            error_log('[OE] faq_script rejected: does not match expected JSON-LD script block format');
+            return null;
+        }
+
+        $json = trim($matches[1]);
+        if (json_decode($json) === null) {
+            error_log('[OE] faq_script rejected: inner content is not valid JSON');
+            return null;
+        }
+
+        return $trimmed;
+    }
 
     /**
      * Returns a viewable URL for a post regardless of its publish status.

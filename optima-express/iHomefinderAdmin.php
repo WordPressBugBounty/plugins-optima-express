@@ -484,7 +484,8 @@ class iHomefinderAdmin {
         $emailPhone = get_option(iHomefinderConstants::EMAIL_PHONE_OPTION, null);
         $emailAddressLine1 = get_option(iHomefinderConstants::EMAIL_ADDRESS_LINE1_OPTION, null);
         $emailAddressLine2 = get_option(iHomefinderConstants::EMAIL_ADDRESS_LINE2_OPTION, null);
-                
+        $blogCredentials = $this->provisionBlogCredentials();
+
         $emailBrandingType = null;
         switch ($emailDisplayType) {
             case iHomefinderAdminEmail::EMAIL_DISPLAY_TYPE_CUSTOM_IMAGES_VALUE;
@@ -563,11 +564,83 @@ class iHomefinderAdmin {
             ->addParameter("emailPhone", $emailPhone)
             ->addParameter("emailAddressLine1", $emailAddressLine1)
             ->addParameter("emailAddressLine2", $emailAddressLine2);
-        
+
+        if ($blogCredentials !== null) {
+            $remoteRequest
+                ->addParameter("wpAppUsername", $blogCredentials["username"])
+                ->addParameter("wpAppPassword", $blogCredentials["password"])
+                ->addParameter("wpRestBase", $blogCredentials["restBase"]);
+        }
+
         $remoteResponse = $remoteRequest->remotePostRequest();
+
+        if ($blogCredentials !== null && $remoteResponse->hasError()) {
+            // Roll back the new credential so the next activation attempt re-provisions
+            $user = get_user_by("login", "optima-express");
+            if ($user) {
+                WP_Application_Passwords::delete_application_password($user->ID, $blogCredentials["uuid"]);
+            }
+        }
+
         return $remoteResponse->getResponse();
     }
     
+    private function provisionBlogCredentials()
+    {
+        if (!class_exists("WP_Application_Passwords")) {
+            return null;
+        }
+
+        $user = get_user_by("login", "optima-express");
+        if (!$user) {
+            $userId = wp_create_user(
+                "optima-express",
+                wp_generate_password(24, true, true),
+                "optima-express@noreply.ihomefinder.com"
+            );
+            if (is_wp_error($userId)) {
+                return null;
+            }
+            $user = get_user_by("ID", $userId);
+        }
+
+        if (is_multisite() && !is_user_member_of_blog($user->ID)) {
+            $result = add_user_to_blog(get_current_blog_id(), $user->ID, "author");
+            if (is_wp_error($result)) {
+                return null;
+            }
+        } else {
+            $user->set_role("author");
+        }
+
+        // Use a per-site password name on multisite so refreshing one site does not invalidate others
+        $appPasswordName = is_multisite() ? "ihomefinder-blog-" . get_current_blog_id() : "ihomefinder-blog";
+
+        // Revoke only this site's named password — plaintext is unrecoverable after creation
+        $existing = WP_Application_Passwords::get_user_application_passwords($user->ID);
+        foreach ($existing as $appPassword) {
+            if ($appPassword["name"] === $appPasswordName) {
+                WP_Application_Passwords::delete_application_password($user->ID, $appPassword["uuid"]);
+                break;
+            }
+        }
+
+        $result = WP_Application_Passwords::create_new_application_password(
+            $user->ID,
+            array("name" => $appPasswordName)
+        );
+        if (is_wp_error($result)) {
+            return null;
+        }
+
+        return array(
+            "username" => "optima-express",
+            "password" => $result[0],
+            "uuid"     => $result[1]["uuid"],
+            "restBase" => get_rest_url(null, "optima-express/v1/blog-post/"),
+        );
+    }
+
     private function getSitemap()
     {
         $remoteRequest = new iHomefinderRequestor();

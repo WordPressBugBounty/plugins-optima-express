@@ -73,6 +73,38 @@ class iHomefinderInstaller
         }
     }
     
+    /**
+     * Provisions all sub-sites in a WordPress Multisite network with Optima Express
+     * authentication credentials. Called on network-level plugin upgrade or activation
+     * to ensure every sub-site that has an activation token is registered with ihf-root.
+     *
+     * @return void
+     */
+    public function upgradeNetwork()
+    {
+        if (!is_multisite()) {
+            return;
+        }
+        set_time_limit(0);
+        $sites = get_sites(array('fields' => 'ids', 'number' => 0));
+        foreach ($sites as $blogId) {
+            switch_to_blog($blogId);
+            try {
+                $activationToken = get_option(iHomefinderConstants::ACTIVATION_TOKEN_OPTION);
+                if (!empty($activationToken)) {
+                    $this->admin->activateAuthenticationToken();
+                }
+            } catch (Exception $e) {
+                error_log(sprintf(
+                    '[Optima Express] Network provisioning failed for site %d: %s',
+                    $blogId,
+                    $e->getMessage()
+                ));
+            }
+            restore_current_blog();
+        }
+    }
+
     private function deleteOldOptions()
     {
         $options = array(
