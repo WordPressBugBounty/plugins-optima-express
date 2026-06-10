@@ -141,7 +141,7 @@ class iHomefinderAdminConfiguration extends iHomefinderAdminAbstractPage
                             name="<?php echo esc_attr(iHomefinderConstants::SEO_COMPAT_OPTION); ?>"
                             id="<?php echo esc_attr(iHomefinderConstants::SEO_COMPAT_OPTION); ?>"
                         >
-                        <p class="description">Optima Express includes built-in SEO support for IDX pages. SEO plugins are not needed on these pages and can cause incorrect titles, descriptions, and social sharing previews.</p>
+                        <p class="description">Optima Express includes built-in SEO support for IDX pages. SEO plugins are not needed on these pages and can cause incorrect titles, descriptions, and social sharing previews. When enabled, the following plugins are disabled on IDX pages: Yoast SEO, All in One SEO, Rank Math, Squirrly SEO, SEOPress.</p>
                     </td>
                 </tr>
             </table>

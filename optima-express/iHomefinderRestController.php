@@ -73,6 +73,16 @@ class iHomefinderRestController
                 "permission_callback" => array($this, "checkPermission"),
             )
         );
+
+        register_rest_route(
+            "optima-express/v1",
+            "/authors",
+            array(
+                "methods"             => WP_REST_Server::READABLE,
+                "callback"            => array($this, "getAuthors"),
+                "permission_callback" => array($this, "checkPermission"),
+            )
+        );
     }
 
     // ---------------------------------------------------------------------------
@@ -115,6 +125,9 @@ class iHomefinderRestController
         $seoParam = $request->get_param("seo");
         $seo = (is_array($seoParam)) ? $seoParam : array();
 
+        $authorId   = intval($request->get_param("author"));
+        $postAuthor = ($authorId > 0) ? $authorId : get_current_user_id();
+
         // 2. Validate required fields
         if (empty($title)) {
             return new WP_Error(
@@ -136,7 +149,7 @@ class iHomefinderRestController
         $postData = array(
             "comment_status" => "closed",
             "ping_status"    => "closed",
-            "post_author"    => get_current_user_id(),
+            "post_author"    => $postAuthor,
             "post_content"   => $content,
             "post_status"    => $status,
             "post_title"     => $title,
@@ -145,6 +158,31 @@ class iHomefinderRestController
 
         if (!empty($slug)) {
             $postData["post_name"] = $slug;
+        }
+
+        // Resolve market category — look up by name, auto-create if not found
+        $marketName = sanitize_text_field($request->get_param("market_name"));
+        if (!empty($marketName)) {
+            $termId = null;
+            $term   = get_term_by("name", $marketName, "category");
+            if ($term) {
+                $termId = $term->term_id;
+            } else {
+                $result = wp_insert_term($marketName, "category");
+                if (is_wp_error($result)) {
+                    if ($result->get_error_code() === "term_exists") {
+                        // Race condition or slug collision — use the existing term
+                        $termId = (int) $result->get_error_data("term_exists");
+                    } else {
+                        error_log("IHF: Failed to create WP category \"" . $marketName . "\": " . $result->get_error_message());
+                    }
+                } else {
+                    $termId = $result["term_id"];
+                }
+            }
+            if ($termId) {
+                $postData["post_category"] = array($termId);
+            }
         }
 
         // 4. Insert the post
@@ -202,6 +240,67 @@ class iHomefinderRestController
             ),
             201
         );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Authors endpoint
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Returns a list of WordPress users capable of publishing posts on the current subsite.
+     * The Optima Express system user is always included with a fixed display name.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function getAuthors($request)
+    {
+        $blogId = get_current_blog_id();
+
+        $users = get_users(array(
+            'capability' => 'publish_posts',
+            'blog_id'    => $blogId,
+        ));
+
+        $systemUserLogin = 'optima-express';
+        $systemUserFound = false;
+        $result          = array();
+
+        foreach ($users as $user) {
+            // Exclude network Super Admins who have no explicit role on this subsite.
+            if (is_super_admin($user->ID)) {
+                $wpUser = new WP_User($user->ID, '', $blogId);
+                if (empty($wpUser->roles)) {
+                    continue;
+                }
+            }
+
+            $displayName = $user->display_name;
+
+            if ($user->user_login === $systemUserLogin) {
+                $displayName     = 'Optima Express (System Account)';
+                $systemUserFound = true;
+            }
+
+            $result[] = array(
+                'id'           => (int) $user->ID,
+                'display_name' => $displayName,
+            );
+        }
+
+        if (!$systemUserFound) {
+            $systemUser = get_user_by('login', $systemUserLogin);
+            if ($systemUser !== false) {
+                $result[] = array(
+                    'id'           => (int) $systemUser->ID,
+                    'display_name' => 'Optima Express (System Account)',
+                );
+            } else {
+                error_log('[OE] getAuthors: optima-express system user not found. Site may not be provisioned correctly.');
+            }
+        }
+
+        return new WP_REST_Response($result, 200);
     }
 
     // ---------------------------------------------------------------------------

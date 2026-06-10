@@ -3,7 +3,7 @@
 /**
  * Suppresses conflicting SEO plugin head output on iHomefinder virtual pages.
  *
- * SEO plugins (Yoast, AIOSEO, Rank Math, Squirrly) inject meta tags that override
+ * SEO plugins (Yoast, AIOSEO, Rank Math, Squirrly, SEOPress) inject meta tags that override
  * iHomefinder's dynamic content (listing address, photo, URL) on virtual pages.
  * This class detects iHomefinder virtual pages and suppresses each SEO plugin's
  * head output, leaving iHomefinder's own meta tags as the sole SEO output.
@@ -78,6 +78,31 @@ class iHomefinderSeoCompat
                 $sqFrontend = SQ_Classes_ObjController::getClass('SQ_Models_Frontend');
                 if (is_object($sqFrontend) && method_exists($sqFrontend, 'init')) {
                     remove_action('wp_head', array($sqFrontend, 'init'), 1);
+                }
+            }
+
+            // SEOPress — sweep all frontend hooks by namespace.
+            // SEOPress has no single disable filter. It registers 20+ hooks across named
+            // functions (seopress_*) and OOP class methods (SEOPress\* namespace) spanning
+            // wp_head (meta, canonical, schema, site verification), wp_footer/wp_body_open
+            // (analytics, Matomo, custom tracking), wp_enqueue_scripts (JS/CSS assets), and
+            // template_redirect (archive redirects). Sweeping by namespace catches all of
+            // these — including future additions — without enumerating each hook individually.
+            // Verified against SEOPress 9.8.4 source.
+            $seopress_hooks = ['wp_head', 'wp_footer', 'wp_body_open', 'wp_enqueue_scripts', 'template_redirect'];
+            foreach ($seopress_hooks as $hook) {
+                if (empty($GLOBALS['wp_filter'][$hook])) {
+                    continue;
+                }
+                foreach ($GLOBALS['wp_filter'][$hook]->callbacks as $priority => $callbacks) {
+                    foreach ($callbacks as $callback) {
+                        $fn   = $callback['function'];
+                        $name = is_string($fn) ? $fn
+                              : (is_array($fn) && is_object($fn[0]) ? get_class($fn[0]) : '');
+                        if (stripos($name, 'seopress') !== false) {
+                            remove_action($hook, $fn, $priority);
+                        }
+                    }
                 }
             }
         }, 0);
