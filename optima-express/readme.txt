@@ -669,7 +669,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 == Upgrade Notice ==
 
 = 8.7.0 =
-Includes automatic categorization of market blog posts, blog post author support, and SEOPress compatibility for IDX pages.
+* Automatically assign a matching category to market blog posts when they are created
+* Added author support for blog posts and the ability to retrieve site authors
+* Added SEOPress compatibility to the "Disable SEO Plugins on IDX Pages" setting
 
 = 8.6.0 =
 Includes provisioning improvements, FAQ structured data support, and early access to the AI Blog Post Generator.
