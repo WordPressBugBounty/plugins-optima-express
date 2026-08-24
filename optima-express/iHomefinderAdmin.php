@@ -585,9 +585,45 @@ class iHomefinderAdmin {
         return $remoteResponse->getResponse();
     }
     
+    public function provisionBlogIntegration()
+    {
+        $authenticationToken = get_option(iHomefinderConstants::AUTHENTICATION_TOKEN_OPTION);
+        if (empty($authenticationToken)) {
+            error_log(sprintf('[Optima Express] provisionBlogIntegration skipped for blog %d — site not yet activated', get_current_blog_id()));
+            return;
+        }
+        $blogCredentials = $this->provisionBlogCredentials();
+        if ($blogCredentials === null) {
+            error_log(sprintf('[Optima Express] provisionBlogIntegration skipped for blog %d — provisionBlogCredentials returned null', get_current_blog_id()));
+            return;
+        }
+        $activationToken = get_option(iHomefinderConstants::ACTIVATION_TOKEN_OPTION);
+        $scheme = is_ssl() ? 'https' : 'http';
+        $url = $scheme . '://' . iHomefinderConstants::EXTERNAL_URL;
+        $response = wp_remote_post($url, array(
+            'timeout' => 200,
+            'body'    => array(
+                'requestType'    => 'provision-blog-integration',
+                'activationToken' => $activationToken,
+                'wpAppUsername'  => $blogCredentials['username'],
+                'wpAppPassword'  => $blogCredentials['password'],
+                'wpRestBase'     => $blogCredentials['restBase'],
+            ),
+        ));
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            $user = get_user_by('login', 'optima-express');
+            if ($user) {
+                WP_Application_Passwords::delete_application_password($user->ID, $blogCredentials['uuid']);
+            }
+            $message = is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_message($response);
+            throw new Exception(sprintf('[Optima Express] provision-blog-integration failed for blog %d: %s', get_current_blog_id(), $message));
+        }
+    }
+
     private function provisionBlogCredentials()
     {
         if (!class_exists("WP_Application_Passwords")) {
+            error_log(sprintf('[Optima Express] provisionBlogCredentials: WP_Application_Passwords not available (WordPress < 5.6?) for blog %d', get_current_blog_id()));
             return null;
         }
 
@@ -599,6 +635,7 @@ class iHomefinderAdmin {
                 "optima-express@noreply.ihomefinder.com"
             );
             if (is_wp_error($userId)) {
+                error_log(sprintf('[Optima Express] provisionBlogCredentials: wp_create_user failed for blog %d: %s', get_current_blog_id(), $userId->get_error_message()));
                 return null;
             }
             $user = get_user_by("ID", $userId);
@@ -607,6 +644,7 @@ class iHomefinderAdmin {
         if (is_multisite() && !is_user_member_of_blog($user->ID)) {
             $result = add_user_to_blog(get_current_blog_id(), $user->ID, "author");
             if (is_wp_error($result)) {
+                error_log(sprintf('[Optima Express] provisionBlogCredentials: add_user_to_blog failed for blog %d: %s', get_current_blog_id(), $result->get_error_message()));
                 return null;
             }
         } else {

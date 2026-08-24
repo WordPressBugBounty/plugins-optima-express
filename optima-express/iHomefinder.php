@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
  * Includes search and listing pages, widgets and shortcodes.
  * Requires an IDX account from iHomefinder.
  * Get a paid account with data from your MLS.
- * Version: 8.7.0
+ * Version: 8.7.1
  * Author: ihomefinder
  * Author URI: http://www.ihomefinder.com
  * License: GPLv2 or later

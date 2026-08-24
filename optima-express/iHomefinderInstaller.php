@@ -66,7 +66,11 @@ class iHomefinderInstaller
             $this->deleteOldOptions();
             $this->addStyleTagsToCssOverride();
             if (!$this->utility->isDatabaseCached() && $this->admin->previouslyActivated()) {
-                $this->admin->activateAuthenticationToken();
+                if ($this->admin->isActivated()) {
+                    $this->admin->provisionBlogIntegration();
+                } else {
+                    $this->admin->activateAuthenticationToken();
+                }
                 $this->rewriteRules->initialize();
                 $this->rewriteRules->flushRules();
             }
@@ -92,7 +96,7 @@ class iHomefinderInstaller
             try {
                 $activationToken = get_option(iHomefinderConstants::ACTIVATION_TOKEN_OPTION);
                 if (!empty($activationToken)) {
-                    $this->admin->activateAuthenticationToken();
+                    $this->admin->provisionBlogIntegration();
                 }
             } catch (Exception $e) {
                 error_log(sprintf(
@@ -100,8 +104,9 @@ class iHomefinderInstaller
                     $blogId,
                     $e->getMessage()
                 ));
+            } finally {
+                restore_current_blog();
             }
-            restore_current_blog();
         }
     }
 
