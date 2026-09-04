@@ -573,16 +573,17 @@ class iHomefinderAdmin {
         }
 
         $remoteResponse = $remoteRequest->remotePostRequest();
+        $response = $remoteResponse->getResponse();
 
-        if ($blogCredentials !== null && $remoteResponse->hasError()) {
-            // Roll back the new credential so the next activation attempt re-provisions
-            $user = get_user_by("login", "optima-express");
-            if ($user) {
-                WP_Application_Passwords::delete_application_password($user->ID, $blogCredentials["uuid"]);
-            }
+        // A populated authenticationToken is only rendered by the registration view, which
+        // runs after the credential has been committed on the iHomefinder side. Anything
+        // else - an error status, an unreachable host, a rolled back transaction - leaves
+        // the previous credential in place and the new one unconfirmed.
+        if ($blogCredentials !== null && $this->hasAuthenticationToken($response)) {
+            $this->confirmBlogCredentials($blogCredentials["uuid"]);
         }
 
-        return $remoteResponse->getResponse();
+        return $response;
     }
     
     public function provisionBlogIntegration()
@@ -611,13 +612,12 @@ class iHomefinderAdmin {
             ),
         ));
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
-            $user = get_user_by('login', 'optima-express');
-            if ($user) {
-                WP_Application_Passwords::delete_application_password($user->ID, $blogCredentials['uuid']);
-            }
+            // Leave both credentials alone: the previously confirmed one still works, and
+            // the unconfirmed one is cleaned up by the next provisioning attempt.
             $message = is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_message($response);
             throw new Exception(sprintf('[Optima Express] provision-blog-integration failed for blog %d: %s', get_current_blog_id(), $message));
         }
+        $this->confirmBlogCredentials($blogCredentials['uuid']);
     }
 
     private function provisionBlogCredentials()
@@ -651,23 +651,26 @@ class iHomefinderAdmin {
             $user->set_role("author");
         }
 
-        // Use a per-site password name on multisite so refreshing one site does not invalidate others
-        $appPasswordName = is_multisite() ? "ihomefinder-blog-" . get_current_blog_id() : "ihomefinder-blog";
-
-        // Revoke only this site's named password — plaintext is unrecoverable after creation
-        $existing = WP_Application_Passwords::get_user_application_passwords($user->ID);
-        foreach ($existing as $appPassword) {
-            if ($appPassword["name"] === $appPasswordName) {
-                WP_Application_Passwords::delete_application_password($user->ID, $appPassword["uuid"]);
-                break;
-            }
+        // Discard credentials left behind by earlier attempts that were never confirmed.
+        // The confirmed one is kept: it is the only credential iHomefinder can still post
+        // with, and its plaintext is unrecoverable, so it must outlive its replacement
+        // until that replacement has itself been confirmed.
+        //
+        // Before the first confirmation there is no record of which password iHomefinder
+        // holds, so nothing is revoked here. Sites provisioned by an earlier version reach
+        // this branch once, and their live password must survive until the next
+        // confirmation replaces it.
+        $confirmedUuid = $this->getConfirmedBlogAppPasswordUuid();
+        if ($confirmedUuid !== null) {
+            $this->revokeBlogAppPasswords($user->ID, $confirmedUuid);
         }
 
         $result = WP_Application_Passwords::create_new_application_password(
             $user->ID,
-            array("name" => $appPasswordName)
+            array("name" => $this->getBlogAppPasswordName())
         );
         if (is_wp_error($result)) {
+            error_log(sprintf('[Optima Express] provisionBlogCredentials: create_new_application_password failed for blog %d: %s', get_current_blog_id(), $result->get_error_message()));
             return null;
         }
 
@@ -677,6 +680,61 @@ class iHomefinderAdmin {
             "uuid"     => $result[1]["uuid"],
             "restBase" => get_rest_url(null, "optima-express/v1/blog-post/"),
         );
+    }
+
+    /**
+     * Records the credential iHomefinder confirmed it stored, then revokes every other
+     * blog application password. Called only once the round trip has succeeded, so the
+     * credential being replaced stays usable for the whole of the exchange.
+     */
+    private function confirmBlogCredentials($uuid)
+    {
+        update_option(iHomefinderConstants::BLOG_APP_PASSWORD_UUID_OPTION, $uuid);
+        $user = get_user_by("login", "optima-express");
+        if ($user) {
+            $this->revokeBlogAppPasswords($user->ID, $uuid);
+        }
+    }
+
+    private function getConfirmedBlogAppPasswordUuid()
+    {
+        return get_option(iHomefinderConstants::BLOG_APP_PASSWORD_UUID_OPTION, null);
+    }
+
+    /**
+     * Per-site password name on multisite, so refreshing one site does not invalidate others.
+     */
+    private function getBlogAppPasswordName()
+    {
+        return is_multisite() ? "ihomefinder-blog-" . get_current_blog_id() : "ihomefinder-blog";
+    }
+
+    /**
+     * Revokes this site's blog application passwords, except the one named by $keepUuid.
+     * Passing a uuid that is not present revokes all of them.
+     */
+    private function revokeBlogAppPasswords($userId, $keepUuid)
+    {
+        $appPasswordName = $this->getBlogAppPasswordName();
+        $existing = WP_Application_Passwords::get_user_application_passwords($userId);
+        foreach ($existing as $appPassword) {
+            if ($appPassword["name"] === $appPasswordName && $appPassword["uuid"] !== $keepUuid) {
+                WP_Application_Passwords::delete_application_password($userId, $appPassword["uuid"]);
+            }
+        }
+    }
+
+    /**
+     * True when iHomefinder returned a registration response carrying a non-empty
+     * authentication token, which is the only signal that the request was committed.
+     */
+    private function hasAuthenticationToken($response)
+    {
+        if (!is_object($response) || !property_exists($response, "authenticationToken")) {
+            return false;
+        }
+        // An empty XML element decodes to an empty object rather than an empty string.
+        return is_scalar($response->authenticationToken) && $response->authenticationToken !== "";
     }
 
     private function getSitemap()

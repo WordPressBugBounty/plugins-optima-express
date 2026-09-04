@@ -34,10 +34,26 @@ class iHomefinderUrlFactory
 
     /**
      * This is a Wordpress standard for AJAX handling.
+     *
+     * The scheme is taken from home_url() rather than left to admin_url() to
+     * derive. An unqualified admin_url() resolves its scheme from the request
+     * context, so behind a TLS-terminating proxy -- where is_ssl() is false --
+     * it returns http and overwrites a correct https value.
+     *
+     * This value is sent to ihf-root as ajaxBaseUrl and stored as the client
+     * AjaxBaseUrl feature. SiteResourceTranslator reduces it to scheme://host and
+     * passes it to Kestrel as site.baseUrl, which tests
+     * window.location.href.startsWith(site.baseUrl.href) -- a scheme mismatch
+     * throws BaseUrlMismatchError on every page load.
+     *
+     * home_url() reads the stored home option instead of the request, which is
+     * how every other URL in the registration map already derives its scheme (via
+     * prependBaseUrl -> getBaseUrl). It is also the front-end URL Kestrel compares
+     * against, so matching it is the actual invariant.
      */
     public function getAjaxBaseUrl()
     {
-        return admin_url("admin-ajax.php");
+        return admin_url("admin-ajax.php", parse_url(home_url(), PHP_URL_SCHEME));
     }
     
     /**

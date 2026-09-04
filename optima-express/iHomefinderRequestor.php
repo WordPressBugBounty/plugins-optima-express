@@ -261,7 +261,10 @@ class iHomefinderRequestor
         $this->logger->debug("after request");
         $this->logger->debug($response);
         
-        if (!is_wp_error($response)) {
+        $responseBodyObject = null;
+        if (is_wp_error($response)) {
+            $this->logger->debug("remotePostRequest failed: " . $response->get_error_message());
+        } else {
             $responseBody = wp_remote_retrieve_body($response);
             if ($response["response"]["code"] >= 400) {
                 $responseBodyObject = new stdClass();
@@ -275,10 +278,13 @@ class iHomefinderRequestor
                     $responseBodyObject = json_decode($responseBody);
                 }
             }
-            $this->remoteResponse = new iHomefinderRemoteResponse();
-            $this->remoteResponse->setResponse($responseBodyObject);
         }
-            
+
+        // Always hand back a response object. Callers read the parsed body through it, and
+        // a transport failure is reported as an absent body rather than as a null return.
+        $this->remoteResponse = new iHomefinderRemoteResponse();
+        $this->remoteResponse->setResponse($responseBodyObject);
+
         return $this->remoteResponse;
     }
     
