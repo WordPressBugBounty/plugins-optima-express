@@ -51,6 +51,8 @@ class iHomefinderInstaller
     {
         //Clear out any rewrite rules associated with the plugin
         $this->rewriteRules->flushRules();
+        //Drop a queued blog-provisioning retry rather than leaving it in the cron array
+        wp_clear_scheduled_hook('ihf_oe_blog_provision_retry');
     }
     
     /**
@@ -66,10 +68,23 @@ class iHomefinderInstaller
             $this->deleteOldOptions();
             $this->addStyleTagsToCssOverride();
             if (!$this->utility->isDatabaseCached() && $this->admin->previouslyActivated()) {
-                if ($this->admin->isActivated()) {
-                    $this->admin->provisionBlogIntegration();
-                } else {
-                    $this->admin->activateAuthenticationToken();
+                try {
+                    if ($this->admin->isActivated()) {
+                        $this->admin->provisionBlogIntegration();
+                    } else {
+                        $this->admin->activateAuthenticationToken();
+                    }
+                } catch (Throwable $e) {
+                    // Throwable, not Exception: a TypeError in the provisioning path would
+                    // otherwise still skip the rewrite-rule init below, which is the whole
+                    // reason for catching here.
+                    //
+                    // The version option is already stamped above, so this upgrade will not
+                    // run again and cannot retry provisioning itself. Swallow the failure so
+                    // the rest of the upgrade still completes; provisionBlogIntegration()
+                    // leaves its pending marker set and retryBlogProvisioningIfPending()
+                    // takes it from here on a later page load.
+                    error_log($e->getMessage());
                 }
                 $this->rewriteRules->initialize();
                 $this->rewriteRules->flushRules();

@@ -6,6 +6,11 @@ if (! defined('ABSPATH')) {
 
 class iHomefinderAdmin {
 
+    // Throttle for retryBlogProvisioningIfPending(). Per blog id, so one site's attempt
+    // does not suppress another's on multisite.
+    const BLOG_PROVISION_RETRY_TRANSIENT = "ihf_blog_provision_retry_";
+    const BLOG_PROVISION_RETRY_INTERVAL = 900; // 15 minutes
+
     private static $instance;
     private $utility;
     private $displayRules;
@@ -586,8 +591,16 @@ class iHomefinderAdmin {
         return $response;
     }
     
+    /**
+     * Provisions the blog credential and delivers it to iHomefinder.
+     *
+     * Every exit that leaves the site without a confirmed credential keeps the pending
+     * marker set, so retryBlogProvisioningIfPending() picks the work back up on a later
+     * page load. Only a completed round trip clears it.
+     */
     public function provisionBlogIntegration()
     {
+        update_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION, "1");
         $authenticationToken = get_option(iHomefinderConstants::AUTHENTICATION_TOKEN_OPTION);
         if (empty($authenticationToken)) {
             error_log(sprintf('[Optima Express] provisionBlogIntegration skipped for blog %d — site not yet activated', get_current_blog_id()));
@@ -618,6 +631,78 @@ class iHomefinderAdmin {
             throw new Exception(sprintf('[Optima Express] provision-blog-integration failed for blog %d: %s', get_current_blog_id(), $message));
         }
         $this->confirmBlogCredentials($blogCredentials['uuid']);
+    }
+
+    /**
+     * Cheap read-only test for whether a retry is owed, for callers that must decide
+     * without doing any work. Option reads only — both are autoloaded.
+     *
+     * @return bool
+     */
+    public function blogProvisioningIsPending()
+    {
+        if (!$this->previouslyActivated() || !$this->isActivated()) {
+            return false;
+        }
+        if (!empty(get_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION, null))) {
+            return true;
+        }
+        // Pre-8.7.2 site: the uuid option did not exist, so its absence is the only
+        // remaining signal that this site has never confirmed a credential.
+        return empty($this->getConfirmedBlogAppPasswordUuid());
+    }
+
+    /**
+     * Re-runs blog provisioning for a site that never completed it.
+     *
+     * upgrade() only attempts provisioning on the transition to a new plugin version, and
+     * stamps that version before the attempt, so a site whose attempt failed is left marked
+     * current and never tries again. This closes that gap.
+     *
+     * Two states need retrying, and neither is distinguishable from a healthy site by the
+     * plugin version alone:
+     *  - the pending marker is set, meaning a previous attempt exited without confirming;
+     *  - the site is activated but has no recorded uuid, which is where sites upgrading
+     *    from a pre-8.7.2 version start out, since that option did not exist before it.
+     *
+     * Throttled to one attempt per window per site. Called directly on admin requests and
+     * via a scheduled cron event on front-end ones, since the round trip blocks.
+     *
+     * @return void
+     */
+    public function retryBlogProvisioningIfPending()
+    {
+        if (!$this->previouslyActivated() || !$this->isActivated()) {
+            return;
+        }
+        $pending = get_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION, null);
+        $confirmedUuid = $this->getConfirmedBlogAppPasswordUuid();
+        if (empty($pending) && empty($confirmedUuid)) {
+            // Pre-8.7.2 site: no uuid was ever recorded because the option did not exist.
+            // Mark it so the throttle below applies to it like any other pending site.
+            $pending = "1";
+            update_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION, $pending);
+        }
+        if (empty($pending)) {
+            return;
+        }
+        // One attempt per window per site. Provisioning makes a blocking HTTP call with a
+        // 200s timeout, and the two early returns in provisionBlogIntegration() neither
+        // clear the marker nor throw, so without this a site in that state would attempt
+        // on every single page load. The transient is also what bounds application
+        // password growth on a site whose round trip keeps failing.
+        $throttleKey = self::BLOG_PROVISION_RETRY_TRANSIENT . get_current_blog_id();
+        if (get_transient($throttleKey)) {
+            return;
+        }
+        set_transient($throttleKey, 1, self::BLOG_PROVISION_RETRY_INTERVAL);
+        try {
+            $this->provisionBlogIntegration();
+        } catch (Throwable $e) {
+            // Leave the marker set and try again in the next window. The previously
+            // confirmed credential, if any, is untouched by a failed attempt.
+            error_log($e->getMessage());
+        }
     }
 
     private function provisionBlogCredentials()
@@ -690,6 +775,10 @@ class iHomefinderAdmin {
     private function confirmBlogCredentials($uuid)
     {
         update_option(iHomefinderConstants::BLOG_APP_PASSWORD_UUID_OPTION, $uuid);
+        // Clear here rather than at the call sites: the settings sync in
+        // getAuthenticationInfo() confirms too, and a site that has just confirmed is by
+        // definition no longer pending regardless of which path got it there.
+        delete_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION);
         $user = get_user_by("login", "optima-express");
         if ($user) {
             $this->revokeBlogAppPasswords($user->ID, $uuid);

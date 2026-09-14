@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
  * Includes search and listing pages, widgets and shortcodes.
  * Requires an IDX account from iHomefinder.
  * Get a paid account with data from your MLS.
- * Version: 8.7.2
+ * Version: 8.7.3
  * Author: ihomefinder
  * Author URI: http://www.ihomefinder.com
  * License: GPLv2 or later
@@ -45,6 +45,11 @@ register_deactivation_hook(__FILE__, array($installer, "remove"));
 
 //Runs just before the auto upgrader installs the plugin
 add_filter("upgrader_post_install", array($installer, "upgrade"), 10, 2);
+
+// Deferred blog-provisioning retry, scheduled from front-end requests so the blocking
+// round trip runs in the cron request rather than in front of a visitor's page render.
+// Registered unconditionally: WP-Cron fires in its own request, which is not is_admin().
+add_action('ihf_oe_blog_provision_retry', array($admin, 'retryBlogProvisioningIfPending'));
 
 // Multisite network provisioning — ensures all sub-sites get registered with ihf-root
 // on network-level plugin upgrade or activation, without requiring per-site admin action.
@@ -130,6 +135,12 @@ add_action("rest_api_init", function() {
 });
 
 if (is_admin()) {
+    // Recover sites whose blog provisioning never completed. upgrade() attempts it only on
+    // a version change and stamps the version first, so a failed attempt is never retried
+    // by it. Admin requests only: provisioning makes a blocking HTTP call with a 200s
+    // timeout, which must never sit in front of a visitor-facing page render.
+    add_action("admin_init", array($admin, "retryBlogProvisioningIfPending"), 20);
+
     add_action("admin_enqueue_scripts", array($admin, "addScripts"));
     add_action("admin_menu", array($admin, "createAdminMenu"));
     add_action("admin_init", array($installer, "upgrade"));
@@ -147,6 +158,24 @@ if (is_admin()) {
     */
     add_action("setup_theme", array($installer, "upgrade"));
     add_action("setup_theme", array($stateManager, "setupLeadCaptureUser"));
+    // Front-end counterpart to the admin_init retry above. A site nobody logs into would
+    // otherwise never recover, but the provisioning call blocks for up to 200s, so this
+    // only ever schedules it — the work happens in the cron request, not this one.
+    //
+    // Deliberately no DISABLE_WP_CRON branch, unlike the network sweep above. That code
+    // runs synchronously when cron is off because it fires once, from an upgrade request
+    // an admin is already waiting on. This fires from visitor page loads, where a 200s
+    // blocking call is exactly what must not happen — so on a site with cron disabled and
+    // no external runner, front-end recovery is knowingly given up and the admin path is
+    // the remaining route.
+    add_action("init", function () use ($admin) {
+        if (!$admin->blogProvisioningIsPending()) {
+            return;
+        }
+        if (!wp_next_scheduled('ihf_oe_blog_provision_retry')) {
+            wp_schedule_single_event(time(), 'ihf_oe_blog_provision_retry');
+        }
+    }, 20);
     add_action("init", array($enqueueResource, "enqueue"));
     add_action("wp_head", array($enqueueResource, "getMetaTags"), -100);
     add_action("wp_head", array($enqueueResource, "getHeader"));

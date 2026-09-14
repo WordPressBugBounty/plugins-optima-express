@@ -11,7 +11,7 @@ if (! defined('ABSPATH')) {
 interface iHomefinderConstants
 {
 
-    const VERSION = "8.7.2";
+    const VERSION = "8.7.3";
     const VERSION_NAME = "Optima Express";
     const EXTERNAL_URL = "www.idxhome.com/service/wordpress";
     const CONTROL_PANEL_EXTERNAL_URL = "secure.idxre.com/idx/guid";
@@ -42,6 +42,8 @@ interface iHomefinderConstants
     const AUTHENTICATION_TOKEN_OPTION = "ihf_authentication_token"; //token sent with every request
     //uuid of the blog application password iHomefinder has confirmed it stored
     const BLOG_APP_PASSWORD_UUID_OPTION = "ihf_blog_app_password_uuid";
+    //set when blog provisioning still owes a successful run, cleared once one completes
+    const BLOG_PROVISION_PENDING_OPTION = "ihf_blog_provision_pending";
     
     /*
     * IDX page options
