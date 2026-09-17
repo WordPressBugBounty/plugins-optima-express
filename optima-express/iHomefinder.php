@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
  * Includes search and listing pages, widgets and shortcodes.
  * Requires an IDX account from iHomefinder.
  * Get a paid account with data from your MLS.
- * Version: 8.7.3
+ * Version: 8.7.4
  * Author: ihomefinder
  * Author URI: http://www.ihomefinder.com
  * License: GPLv2 or later
@@ -139,6 +139,11 @@ if (is_admin()) {
     // a version change and stamps the version first, so a failed attempt is never retried
     // by it. Admin requests only: provisioning makes a blocking HTTP call with a 200s
     // timeout, which must never sit in front of a visitor-facing page render.
+    //
+    // Priority 19 runs first: it flags a re-provision when a previously confirmed credential
+    // has been deleted out from under us (which the option-only pending check cannot see), so
+    // the retry at priority 20 picks it up in this same request.
+    add_action("admin_init", array($admin, "flagBlogReprovisionIfCredentialMissing"), 19);
     add_action("admin_init", array($admin, "retryBlogProvisioningIfPending"), 20);
 
     add_action("admin_enqueue_scripts", array($admin, "addScripts"));
@@ -169,6 +174,9 @@ if (is_admin()) {
     // no external runner, front-end recovery is knowingly given up and the admin path is
     // the remaining route.
     add_action("init", function () use ($admin) {
+        // Flag first (throttled) so a confirmed-then-deleted credential becomes pending and is
+        // recovered from front-end traffic too, not only from a wp-admin visit.
+        $admin->flagBlogReprovisionIfCredentialMissing();
         if (!$admin->blogProvisioningIsPending()) {
             return;
         }

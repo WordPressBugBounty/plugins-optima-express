@@ -11,6 +11,12 @@ class iHomefinderAdmin {
     const BLOG_PROVISION_RETRY_TRANSIENT = "ihf_blog_provision_retry_";
     const BLOG_PROVISION_RETRY_INTERVAL = 900; // 15 minutes
 
+    // Throttle for flagBlogReprovisionIfCredentialMissing(). Separate from the retry throttle
+    // above: this bounds how often the (slightly heavier) credential-existence check runs, not
+    // how often provisioning is attempted. Per blog id for the same multisite reason.
+    const BLOG_CREDENTIAL_VERIFY_TRANSIENT = "ihf_blog_credential_verify_";
+    const BLOG_CREDENTIAL_VERIFY_INTERVAL = 3600; // 1 hour — external credential deletion is rare
+
     private static $instance;
     private $utility;
     private $displayRules;
@@ -650,6 +656,75 @@ class iHomefinderAdmin {
         // Pre-8.7.2 site: the uuid option did not exist, so its absence is the only
         // remaining signal that this site has never confirmed a credential.
         return empty($this->getConfirmedBlogAppPasswordUuid());
+    }
+
+    /**
+     * Deterministic, local check for whether the credential iHomefinder confirmed still exists on
+     * the optima-express user. A confirmed uuid that is no longer among the user's application
+     * passwords — or a deleted optima-express user — means the credential was invalidated out from
+     * under us (a security or user-cleanup plugin pruning it, a manual revoke in wp-admin, a DB
+     * restore). iHomefinder still holds it, so every post 401s until we re-provision. Presence of
+     * the uuid is authoritative and needs no HTTP call.
+     *
+     * Only meaningful once a credential has been confirmed. A site that has never confirmed one is
+     * the pre-8.7.2 / never-completed case that blogProvisioningIsPending() already covers, so this
+     * returns false there and does not double-flag it.
+     *
+     * @return bool true when a previously confirmed credential is now missing
+     */
+    private function confirmedBlogCredentialIsMissing()
+    {
+        $confirmedUuid = $this->getConfirmedBlogAppPasswordUuid();
+        if (empty($confirmedUuid)) {
+            return false;
+        }
+        if (!class_exists("WP_Application_Passwords")) {
+            return false;
+        }
+        $user = get_user_by("login", "optima-express");
+        if (!$user) {
+            // The user carrying the credential is gone entirely.
+            return true;
+        }
+        $existing = WP_Application_Passwords::get_user_application_passwords($user->ID);
+        foreach ($existing as $appPassword) {
+            if ($appPassword["uuid"] === $confirmedUuid) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Flags a re-provision when the confirmed credential has been invalidated out from under us.
+     *
+     * blogProvisioningIsPending() deliberately stays a cheap option-only read because it runs on
+     * every front-end request; it cannot see a credential that was confirmed and later deleted
+     * (pending is clear and a uuid is recorded, so it reports healthy). This closes that gap by
+     * doing the heavier existence check — throttled, per blog — and setting the pending marker when
+     * the credential is gone, so the existing retry machinery re-provisions on this or a later
+     * request. It never makes the round trip itself and never rotates a credential that still
+     * exists: a re-provision happens only when the credential is verifiably missing.
+     *
+     * @return void
+     */
+    public function flagBlogReprovisionIfCredentialMissing()
+    {
+        if (!$this->previouslyActivated() || !$this->isActivated()) {
+            return;
+        }
+        if (!empty(get_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION, null))) {
+            // Already pending — the retry path owns it from here; no need to check again.
+            return;
+        }
+        $throttleKey = self::BLOG_CREDENTIAL_VERIFY_TRANSIENT . get_current_blog_id();
+        if (get_transient($throttleKey)) {
+            return;
+        }
+        set_transient($throttleKey, 1, self::BLOG_CREDENTIAL_VERIFY_INTERVAL);
+        if ($this->confirmedBlogCredentialIsMissing()) {
+            update_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION, "1");
+        }
     }
 
     /**
