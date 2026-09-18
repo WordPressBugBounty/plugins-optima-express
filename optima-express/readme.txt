@@ -7,7 +7,7 @@ Requires at least: 4.2.0
 Tested up to: 7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 8.7.4
+Stable tag: 8.7.5
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -146,6 +146,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Changelog ==
+
+= 8.7.5 =
+* Fixed AI Blog Post publishing failing with an authorization error on sites where an earlier connection attempt did not complete; affected sites now reconnect on their own
 
 = 8.7.4 =
 * Fixed AI Blog Post publishing failing with an authorization error on sites where the blog connection was removed after setup; affected sites now reconnect on their own
@@ -680,6 +683,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Upgrade Notice ==
+
+= 8.7.5 =
+Fixes AI Blog Post publishing on sites where an earlier connection attempt did not complete; those sites now reconnect on their own.
 
 = 8.7.4 =
 Fixes AI Blog Post publishing on sites whose blog connection was removed after setup; those sites now reconnect on their own.

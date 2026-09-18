@@ -614,6 +614,7 @@ class iHomefinderAdmin {
         }
         $blogCredentials = $this->provisionBlogCredentials();
         if ($blogCredentials === null) {
+            // provisionBlogCredentials() has already recorded the specific failure.
             error_log(sprintf('[Optima Express] provisionBlogIntegration skipped for blog %d — provisionBlogCredentials returned null', get_current_blog_id()));
             return;
         }
@@ -634,6 +635,9 @@ class iHomefinderAdmin {
             // Leave both credentials alone: the previously confirmed one still works, and
             // the unconfirmed one is cleaned up by the next provisioning attempt.
             $message = is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_message($response);
+            // Record here, not only in the retry's catch: upgrade() and upgradeNetwork() catch
+            // this too and would otherwise leave the site's last-error empty.
+            $this->recordBlogProvisionError('provision-blog-integration failed: ' . $message);
             throw new Exception(sprintf('[Optima Express] provision-blog-integration failed for blog %d: %s', get_current_blog_id(), $message));
         }
         $this->confirmBlogCredentials($blogCredentials['uuid']);
@@ -776,6 +780,7 @@ class iHomefinderAdmin {
         } catch (Throwable $e) {
             // Leave the marker set and try again in the next window. The previously
             // confirmed credential, if any, is untouched by a failed attempt.
+            $this->recordBlogProvisionError($e->getMessage());
             error_log($e->getMessage());
         }
     }
@@ -795,6 +800,7 @@ class iHomefinderAdmin {
                 "optima-express@noreply.ihomefinder.com"
             );
             if (is_wp_error($userId)) {
+                $this->recordBlogProvisionError('wp_create_user failed: ' . $userId->get_error_message());
                 error_log(sprintf('[Optima Express] provisionBlogCredentials: wp_create_user failed for blog %d: %s', get_current_blog_id(), $userId->get_error_message()));
                 return null;
             }
@@ -804,6 +810,7 @@ class iHomefinderAdmin {
         if (is_multisite() && !is_user_member_of_blog($user->ID)) {
             $result = add_user_to_blog(get_current_blog_id(), $user->ID, "author");
             if (is_wp_error($result)) {
+                $this->recordBlogProvisionError('add_user_to_blog failed: ' . $result->get_error_message());
                 error_log(sprintf('[Optima Express] provisionBlogCredentials: add_user_to_blog failed for blog %d: %s', get_current_blog_id(), $result->get_error_message()));
                 return null;
             }
@@ -811,25 +818,32 @@ class iHomefinderAdmin {
             $user->set_role("author");
         }
 
-        // Discard credentials left behind by earlier attempts that were never confirmed.
-        // The confirmed one is kept: it is the only credential iHomefinder can still post
-        // with, and its plaintext is unrecoverable, so it must outlive its replacement
-        // until that replacement has itself been confirmed.
+        // Discard credentials left behind by earlier attempts that were never confirmed, so
+        // they can neither accumulate nor block this attempt (WordPress core rejects a second
+        // application password with the same name on some versions, and a site that hit that
+        // once used to stay stuck forever: MAX-4375).
         //
-        // Before the first confirmation there is no record of which password iHomefinder
-        // holds, so nothing is revoked here. Sites provisioned by an earlier version reach
-        // this branch once, and their live password must survive until the next
-        // confirmation replaces it.
+        // Two credentials are always kept until a confirmation replaces them:
+        //  - the confirmed one, which is the only credential iHomefinder can still post with
+        //    and whose plaintext is unrecoverable;
+        //  - before the first confirmation, the legacy exact-name password. Sites provisioned
+        //    by a version that recorded no uuid have no other record of what iHomefinder holds,
+        //    and that password may well be live.
+        // Everything else under this blog's name family is an unconfirmed leftover.
         $confirmedUuid = $this->getConfirmedBlogAppPasswordUuid();
-        if ($confirmedUuid !== null) {
-            $this->revokeBlogAppPasswords($user->ID, $confirmedUuid);
+        if (empty($confirmedUuid)) {
+            $confirmedUuid = null;
         }
+        $this->revokeBlogAppPasswords($user->ID, $confirmedUuid, $confirmedUuid === null);
 
+        // A unique name per attempt: the kept credentials above can then never collide with
+        // the one being created, whatever the core version's duplicate-name policy is.
         $result = WP_Application_Passwords::create_new_application_password(
             $user->ID,
-            array("name" => $this->getBlogAppPasswordName())
+            array("name" => $this->newBlogAppPasswordName())
         );
         if (is_wp_error($result)) {
+            $this->recordBlogProvisionError('create_new_application_password failed: ' . $result->get_error_message());
             error_log(sprintf('[Optima Express] provisionBlogCredentials: create_new_application_password failed for blog %d: %s', get_current_blog_id(), $result->get_error_message()));
             return null;
         }
@@ -854,10 +868,25 @@ class iHomefinderAdmin {
         // getAuthenticationInfo() confirms too, and a site that has just confirmed is by
         // definition no longer pending regardless of which path got it there.
         delete_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION);
+        delete_option(iHomefinderConstants::BLOG_PROVISION_LAST_ERROR_OPTION);
         $user = get_user_by("login", "optima-express");
         if ($user) {
-            $this->revokeBlogAppPasswords($user->ID, $uuid);
+            // iHomefinder now holds $uuid, so every other credential in this blog's name
+            // family, including the legacy exact-name one, is dead weight.
+            $this->revokeBlogAppPasswords($user->ID, $uuid, false);
         }
+    }
+
+    /**
+     * Records why the last provisioning attempt failed, so the state is readable from
+     * wp-admin or a REST read of the option. error_log() alone proved invisible in practice.
+     */
+    private function recordBlogProvisionError($message)
+    {
+        update_option(iHomefinderConstants::BLOG_PROVISION_LAST_ERROR_OPTION, array(
+            "time"    => time(),
+            "message" => (string) $message,
+        ), false);
     }
 
     private function getConfirmedBlogAppPasswordUuid()
@@ -866,7 +895,9 @@ class iHomefinderAdmin {
     }
 
     /**
-     * Per-site password name on multisite, so refreshing one site does not invalidate others.
+     * Base of this site's password name family. Per-site on multisite, so refreshing one site
+     * does not invalidate others. Versions before 8.7.5 used this exact string as the name;
+     * 8.7.5 and later append a per-attempt suffix (see newBlogAppPasswordName()).
      */
     private function getBlogAppPasswordName()
     {
@@ -874,17 +905,46 @@ class iHomefinderAdmin {
     }
 
     /**
-     * Revokes this site's blog application passwords, except the one named by $keepUuid.
-     * Passing a uuid that is not present revokes all of them.
+     * A name that is unique per attempt, so a leftover from an earlier attempt can never make
+     * WordPress reject the new credential as a duplicate.
      */
-    private function revokeBlogAppPasswords($userId, $keepUuid)
+    private function newBlogAppPasswordName()
     {
-        $appPasswordName = $this->getBlogAppPasswordName();
+        return $this->getBlogAppPasswordName() . "-" . substr(str_replace("-", "", wp_generate_uuid4()), 0, 8);
+    }
+
+    /**
+     * Whether $name belongs to this site's family: the legacy exact name, or the base plus
+     * exactly the 8-hex suffix newBlogAppPasswordName() produces. Requiring the full suffix
+     * shape keeps blog 27's family from matching blog 2702's, and keeps a password a customer
+     * named themselves (say "ihomefinder-blog-notes") out of the plugin's reach.
+     */
+    private function isBlogAppPasswordName($name)
+    {
+        $base = $this->getBlogAppPasswordName();
+        return $name === $base || preg_match('/^' . preg_quote($base, '/') . '-[0-9a-f]{8}$/', $name) === 1;
+    }
+
+    /**
+     * Revokes this site's blog application passwords, except the one named by $keepUuid and,
+     * when $keepLegacy is set, the legacy exact-name password (which a never-confirmed site
+     * may still be posting with). Passing a uuid that is not present revokes all the rest.
+     */
+    private function revokeBlogAppPasswords($userId, $keepUuid, $keepLegacy = false)
+    {
+        $legacyName = $this->getBlogAppPasswordName();
         $existing = WP_Application_Passwords::get_user_application_passwords($userId);
         foreach ($existing as $appPassword) {
-            if ($appPassword["name"] === $appPasswordName && $appPassword["uuid"] !== $keepUuid) {
-                WP_Application_Passwords::delete_application_password($userId, $appPassword["uuid"]);
+            if (!isset($appPassword["name"], $appPassword["uuid"]) || !$this->isBlogAppPasswordName($appPassword["name"])) {
+                continue;
             }
+            if ($appPassword["uuid"] === $keepUuid) {
+                continue;
+            }
+            if ($keepLegacy && $appPassword["name"] === $legacyName) {
+                continue;
+            }
+            WP_Application_Passwords::delete_application_password($userId, $appPassword["uuid"]);
         }
     }
 

@@ -11,7 +11,7 @@ if (! defined('ABSPATH')) {
 interface iHomefinderConstants
 {
 
-    const VERSION = "8.7.4";
+    const VERSION = "8.7.5";
     const VERSION_NAME = "Optima Express";
     const EXTERNAL_URL = "www.idxhome.com/service/wordpress";
     const CONTROL_PANEL_EXTERNAL_URL = "secure.idxre.com/idx/guid";
@@ -44,6 +44,9 @@ interface iHomefinderConstants
     const BLOG_APP_PASSWORD_UUID_OPTION = "ihf_blog_app_password_uuid";
     //set when blog provisioning still owes a successful run, cleared once one completes
     const BLOG_PROVISION_PENDING_OPTION = "ihf_blog_provision_pending";
+    // Last blog-provisioning failure (message + timestamp), so a stuck site is diagnosable from
+    // wp-admin or a REST read instead of only from the server's error log. Cleared on confirm.
+    const BLOG_PROVISION_LAST_ERROR_OPTION = "ihf_blog_provision_last_error";
     
     /*
     * IDX page options
