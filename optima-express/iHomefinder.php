@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (! defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
  * Includes search and listing pages, widgets and shortcodes.
  * Requires an IDX account from iHomefinder.
  * Get a paid account with data from your MLS.
- * Version: 8.7.5
+ * Version: 8.7.6
  * Author: ihomefinder
  * Author URI: http://www.ihomefinder.com
  * License: GPLv2 or later
@@ -51,10 +51,10 @@ add_filter("upgrader_post_install", array($installer, "upgrade"), 10, 2);
 // Registered unconditionally: WP-Cron fires in its own request, which is not is_admin().
 add_action('ihf_oe_blog_provision_retry', array($admin, 'retryBlogProvisioningIfPending'));
 
-// Multisite network provisioning — ensures all sub-sites get registered with ihf-root
+// Multisite network provisioning â€” ensures all sub-sites get registered with ihf-root
 // on network-level plugin upgrade or activation, without requiring per-site admin action.
 if (is_multisite()) {
-    // Cron action handler — registered in the main bootstrap path so it is available
+    // Cron action handler â€” registered in the main bootstrap path so it is available
     // when WP-Cron fires the event in a separate HTTP context.
     add_action('ihf_oe_network_provision', array($installer, 'upgradeNetwork'));
 
@@ -128,7 +128,7 @@ add_filter("jetpack_enable_open_graph", "__return_false");
 //Rewrite Rules
 add_action("init", array($rewriteRules, "initialize"), 1);
 
-// REST API — registered outside is_admin() because WordPress sets is_admin()
+// REST API â€” registered outside is_admin() because WordPress sets is_admin()
 // to false for REST requests, so the hook would never fire if placed inside it.
 add_action("rest_api_init", function() {
     iHomefinderRestController::getInstance()->registerRoutes();
@@ -165,12 +165,12 @@ if (is_admin()) {
     add_action("setup_theme", array($stateManager, "setupLeadCaptureUser"));
     // Front-end counterpart to the admin_init retry above. A site nobody logs into would
     // otherwise never recover, but the provisioning call blocks for up to 200s, so this
-    // only ever schedules it — the work happens in the cron request, not this one.
+    // only ever schedules it â€” the work happens in the cron request, not this one.
     //
     // Deliberately no DISABLE_WP_CRON branch, unlike the network sweep above. That code
     // runs synchronously when cron is off because it fires once, from an upgrade request
     // an admin is already waiting on. This fires from visitor page loads, where a 200s
-    // blocking call is exactly what must not happen — so on a site with cron disabled and
+    // blocking call is exactly what must not happen â€” so on a site with cron disabled and
     // no external runner, front-end recovery is knowingly given up and the admin path is
     // the remaining route.
     add_action("init", function () use ($admin) {

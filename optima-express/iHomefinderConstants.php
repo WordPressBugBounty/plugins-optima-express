@@ -11,7 +11,7 @@ if (! defined('ABSPATH')) {
 interface iHomefinderConstants
 {
 
-    const VERSION = "8.7.5";
+    const VERSION = "8.7.6";
     const VERSION_NAME = "Optima Express";
     const EXTERNAL_URL = "www.idxhome.com/service/wordpress";
     const CONTROL_PANEL_EXTERNAL_URL = "secure.idxre.com/idx/guid";
@@ -47,6 +47,12 @@ interface iHomefinderConstants
     // Last blog-provisioning failure (message + timestamp), so a stuck site is diagnosable from
     // wp-admin or a REST read instead of only from the server's error log. Cleared on confirm.
     const BLOG_PROVISION_LAST_ERROR_OPTION = "ihf_blog_provision_last_error";
+    //wp user id of the plugin's own optima-express service account, pinned at creation time
+    const BLOG_USER_ID_OPTION = "ihf_blog_user_id";
+    //set (to the squatting user id) when login "optima-express" belongs to a foreign account
+    const BLOG_PROVISION_SQUATTED_OPTION = "ihf_blog_provision_squatted";
+    //user meta key written at wp_create_user time — global on multisite (wp_usermeta, not per-blog)
+    const BLOG_SERVICE_ACCOUNT_META = "ihf_service_account";
     
     /*
     * IDX page options

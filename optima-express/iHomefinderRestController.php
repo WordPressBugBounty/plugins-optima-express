@@ -580,12 +580,17 @@ class iHomefinderRestController
         }
 
         $json = trim($matches[1]);
-        if (json_decode($json) === null) {
+        $decoded = json_decode($json);
+        if ($decoded === null) {
             error_log('[OE] faq_script rejected: inner content is not valid JSON');
             return null;
         }
 
-        return $trimmed;
+        // Re-serialize through PHP's encoder to neutralise injection payloads such as
+        // {"a":"</script><script>alert(1)"} that survive json_decode but break the
+        // JSON-LD block when echoed verbatim into wp_head (stored XSS hardening).
+        $safeJson = wp_json_encode($decoded, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return '<script type="application/ld+json">' . $safeJson . '</script>';
     }
 
     /**

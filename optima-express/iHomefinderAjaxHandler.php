@@ -145,6 +145,16 @@ class iHomefinderAjaxHandler {
     
     public function clearCache()
     {
+        // The nopriv registration of this action is used by ihf-root's ExternalCacheService
+        // to flush front-end transients server-to-server without credentials — preserve that.
+        // State-changing operations (token refresh, provisioning) must never run from an
+        // unauthenticated or non-admin request (CVE-2026-93901).
+        if (!current_user_can('manage_options')) {
+            iHomefinderCacheUtility::getInstance()->deleteItems();
+            echo true;
+            wp_die();
+            return;
+        }
         iHomefinderAdmin::getInstance()->activateAuthenticationToken();
         echo true;
         wp_die(); //don't remove

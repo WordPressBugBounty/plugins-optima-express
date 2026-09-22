@@ -765,6 +765,11 @@ class iHomefinderAdmin {
         if (empty($pending)) {
             return;
         }
+        // Do not retry when an unowned account has squatted the "optima-express" login;
+        // provision will never succeed and retrying floods the error log on every cron tick.
+        if (get_option(iHomefinderConstants::BLOG_PROVISION_SQUATTED_OPTION)) {
+            return;
+        }
         // One attempt per window per site. Provisioning makes a blocking HTTP call with a
         // 200s timeout, and the two early returns in provisionBlogIntegration() neither
         // clear the marker nor throw, so without this a site in that state would attempt
@@ -804,7 +809,30 @@ class iHomefinderAdmin {
                 error_log(sprintf('[Optima Express] provisionBlogCredentials: wp_create_user failed for blog %d: %s', get_current_blog_id(), $userId->get_error_message()));
                 return null;
             }
+            // Write ownership proofs so any blog in the network can verify this account
+            // without relying on login name or email (both attacker-controllable).
+            // User meta is stored in wp_usermeta — global on multisite — so all sub-sites
+            // can verify from this single write (CVE-2026-93901).
+            add_user_meta($userId, iHomefinderConstants::BLOG_SERVICE_ACCOUNT_META, '1', true);
+            update_option(iHomefinderConstants::BLOG_USER_ID_OPTION, $userId);
             $user = get_user_by("ID", $userId);
+        } else {
+            // The login already exists — verify this is our service account before
+            // touching its role. Email is not a safe proof: any logged-in user can
+            // PATCH /wp-json/wp/v2/users/me to adopt our canonical address with no
+            // confirmation required (CVE-2026-93901).
+            if (!$this->blogUserIsOwned($user)) {
+                $this->recordBlogProvisionError(sprintf(
+                    'login "optima-express" (id=%d) ownership unverifiable — role change refused',
+                    $user->ID
+                ));
+                error_log(sprintf(
+                    '[Optima Express] provisionBlogCredentials: login "optima-express" (id=%d, email=%s) ownership unverifiable on blog %d — refusing role change (CVE-2026-93901)',
+                    $user->ID, $user->user_email, get_current_blog_id()
+                ));
+                update_option(iHomefinderConstants::BLOG_PROVISION_SQUATTED_OPTION, $user->ID);
+                return null;
+            }
         }
 
         if (is_multisite() && !is_user_member_of_blog($user->ID)) {
@@ -887,6 +915,51 @@ class iHomefinderAdmin {
             "time"    => time(),
             "message" => (string) $message,
         ), false);
+    }
+
+    /**
+     * Returns true when $user is verifiably the plugin's own optima-express service account.
+     *
+     * Three proofs are checked, in order:
+     *   1. User meta (BLOG_SERVICE_ACCOUNT_META) — written at wp_create_user time. Stored in
+     *      wp_usermeta, which is a global table on multisite, so any sub-site can verify without
+     *      its own per-blog pin. Not writable via REST (key is not registered for REST access).
+     *   2. Per-blog option pin (BLOG_USER_ID_OPTION) — covers the creating sub-site before meta
+     *      propagates, and single-site installs. Retroactively writes meta so sibling blogs
+     *      pass on proof 1 next time.
+     *   3. Confirmed app-password UUID — covers pre-8.7.6 sites where provisioning completed
+     *      at least once. App passwords live in wp_usermeta (global on multisite). Retroactively
+     *      writes both proofs on success.
+     *
+     * Email is deliberately NOT a proof: any logged-in user can PATCH /wp-json/wp/v2/users/me
+     * to adopt our canonical address with no confirmation required (CVE-2026-93901).
+     */
+    private function blogUserIsOwned($user)
+    {
+        if (get_user_meta($user->ID, iHomefinderConstants::BLOG_SERVICE_ACCOUNT_META, true) === '1') {
+            return true;
+        }
+        $pinnedId = (int) get_option(iHomefinderConstants::BLOG_USER_ID_OPTION, 0);
+        if ($pinnedId && $user->ID === $pinnedId) {
+            add_user_meta($user->ID, iHomefinderConstants::BLOG_SERVICE_ACCOUNT_META, '1', true);
+            return true;
+        }
+        if (!class_exists("WP_Application_Passwords")) {
+            return false;
+        }
+        $confirmedUuid = $this->getConfirmedBlogAppPasswordUuid();
+        if (empty($confirmedUuid)) {
+            return false;
+        }
+        $passwords = WP_Application_Passwords::get_user_application_passwords($user->ID);
+        foreach ($passwords as $appPassword) {
+            if (isset($appPassword["uuid"]) && $appPassword["uuid"] === $confirmedUuid) {
+                add_user_meta($user->ID, iHomefinderConstants::BLOG_SERVICE_ACCOUNT_META, '1', true);
+                update_option(iHomefinderConstants::BLOG_USER_ID_OPTION, $user->ID);
+                return true;
+            }
+        }
+        return false;
     }
 
     private function getConfirmedBlogAppPasswordUuid()
