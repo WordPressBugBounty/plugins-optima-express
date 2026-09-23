@@ -7,7 +7,7 @@ Requires at least: 4.2.0
 Tested up to: 7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 8.7.6
+Stable tag: 8.7.7
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -146,6 +146,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Changelog ==
+
+= 8.7.7 =
+* Fixed a stray byte-order mark at the start of iHomefinder.php in 8.7.6 that caused "headers already sent" errors, blank pages after saving plugin settings, and loss of registration on some hosts.
 
 = 8.7.6 =
 * Security: Fixed an unauthenticated privilege escalation vulnerability (CVE-2026-93901) in the blog credential provisioning flow.
@@ -686,6 +689,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Upgrade Notice ==
+
+= 8.7.7 =
+Fixes a file-encoding defect in 8.7.6 that broke headers, redirects and plugin registration on some hosts. Contains the CVE-2026-93901 security fix from 8.7.6.
 
 = 8.7.6 =
 Critical security fix (CVE-2026-93901). Please update immediately.
