@@ -10,17 +10,81 @@ class iHomefinderRemoteResponse
     
     private $response;
     private $body;
-    
+    private $httpStatusCode;
+    private $transportErrorCode;
+    private $transportErrorMessage;
+
     public function getResponse()
     {
         return $this->response;
     }
-    
+
     public function setResponse($response)
     {
         $this->response = $response;
     }
-    
+
+    /**
+     * HTTP status of the remote call, or null when the transport failed (WP_Error) or the
+     * response was never sent. Lets a caller tell a rejection (401/403) from an outage.
+     *
+     * @return int|null
+     */
+    public function getHttpStatusCode()
+    {
+        return $this->httpStatusCode;
+    }
+
+    public function setHttpStatusCode($httpStatusCode)
+    {
+        $this->httpStatusCode = $httpStatusCode === null ? null : (int) $httpStatusCode;
+    }
+
+    /**
+     * Records the WP_Error a failed transport produced (code and message), so a caller can
+     * classify the failure without ever seeing the URL or the request body.
+     *
+     * @param string $code
+     * @param string $message
+     * @return void
+     */
+    public function setTransportError($code, $message)
+    {
+        $this->transportErrorCode = is_scalar($code) ? (string) $code : '';
+        $this->transportErrorMessage = is_scalar($message) ? (string) $message : '';
+    }
+
+    public function hasTransportError()
+    {
+        return $this->transportErrorCode !== null;
+    }
+
+    /**
+     * A fixed-vocabulary description of why the call did not succeed, safe to show an
+     * administrator: "HTTP <code>" for a status of 400 or more, "cURL error <n>" for a cURL
+     * transport failure (the errno only; curl's text can name the host), "transport error" for
+     * any other WP_Error, "unexpected response" for a success status whose body lacked what the
+     * caller needed, and "no response" when nothing was sent. Never a URL, a key or a token.
+     *
+     * @return string
+     */
+    public function getFailureDetail()
+    {
+        if ($this->transportErrorCode !== null) {
+            if (preg_match('/cURL error (\d+)/i', (string) $this->transportErrorMessage, $matches)) {
+                return 'cURL error ' . $matches[1];
+            }
+            return 'transport error';
+        }
+        if ($this->httpStatusCode === null) {
+            return 'no response';
+        }
+        if ($this->httpStatusCode >= 400) {
+            return 'HTTP ' . $this->httpStatusCode;
+        }
+        return 'unexpected response';
+    }
+
     public function setBody($body)
     {
         $this->body = $body;

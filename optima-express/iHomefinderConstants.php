@@ -11,7 +11,7 @@ if (! defined('ABSPATH')) {
 interface iHomefinderConstants
 {
 
-    const VERSION = "8.7.8";
+    const VERSION = "9.0.0";
     const VERSION_NAME = "Optima Express";
     const EXTERNAL_URL = "www.idxhome.com/service/wordpress";
     const CONTROL_PANEL_EXTERNAL_URL = "secure.idxre.com/idx/guid";
@@ -33,6 +33,8 @@ interface iHomefinderConstants
     const PAGE_EMAIL_BRANDING = "ihf-email-branding-page";
     const PAGE_COMMUNITY_PAGES = "ihf-community-pages";
     const PAGE_SEO_CITY_LINKS = "ihf-seo-city-links-page";
+    //Network Admin > Settings page of the blog credential migration (multisite only)
+    const PAGE_MIGRATION_STATUS = "ihf-migration-status";
     
     /*
     * activation options
@@ -53,7 +55,113 @@ interface iHomefinderConstants
     const BLOG_PROVISION_SQUATTED_OPTION = "ihf_blog_provision_squatted";
     //user meta key written at wp_create_user time — global on multisite (wp_usermeta, not per-blog)
     const BLOG_SERVICE_ACCOUNT_META = "ihf_service_account";
-    
+
+    /*
+    * Per-site blog credential model (MAX-4396). One service user per site, one application
+    * password on it. The four options above (BLOG_APP_PASSWORD_UUID_OPTION, BLOG_USER_ID_OPTION,
+    * BLOG_PROVISION_SQUATTED_OPTION, BLOG_SERVICE_ACCOUNT_META) describe the shared "optima-express"
+    * user and are read but never written by the per-site model; they are the "legacy" trio.
+    *
+    * Option names are per blog unless the name ends in _SITE_OPTION, which is a network option
+    * (get_site_option / update_site_option; falls back to the blog's own options on single site).
+    * "autoload yes" options are read on ordinary requests and belong in alloptions; "autoload no"
+    * options are read only inside provisioning, demotion or the admin pages.
+    */
+
+    // Request type ihf-root's WordpressController accepts for the credential hand-off.
+    const PROVISION_BLOG_INTEGRATION_REQUEST_TYPE = "provision-blog-integration";
+
+    // The per-site service user: login and nicename prefix, display name, email domain.
+    // Customer-visible surfaces (author name, Users list) say Optima Express, never iHomefinder.
+    const SERVICE_USER_LOGIN_PREFIX = "optima-express-";
+    const SERVICE_USER_DISPLAY_NAME = "Optima Express";
+    const SERVICE_USER_EMAIL_DOMAIN = "noreply.ihomefinder.com";
+    // The shared user every site posted through before the per-site model.
+    const SHARED_USER_LOGIN = "optima-express";
+    // User meta binding a service user to the blog it was created for (wp_usermeta, global on
+    // multisite). Sits beside BLOG_SERVICE_ACCOUNT_META; the leading underscore keeps it out of
+    // REST and the profile screen's custom fields.
+    const SERVICE_ACCOUNT_BLOG_META = "_ihf_service_account_blog";
+
+    // Per-blog, autoload yes.
+    //set when a REST-base change owes a re-send of the credential
+    const BLOG_RESYNC_PENDING_OPTION = "ihf_blog_resync_pending";
+    //uuid of the per-site application password ihf-root confirmed it stored
+    const BLOG_SERVICE_PASSWORD_UUID_OPTION = "ihf_blog_service_password_uuid";
+    //unix time after which the shared user's role may be removed from this blog
+    const SHARED_DEMOTE_AFTER_OPTION = "ihf_shared_demote_after";
+    //unix time the shared user was demoted here, or SHARED_USER_DEMOTED_SKIPPED
+    const SHARED_USER_DEMOTED_OPTION = "ihf_shared_user_demoted";
+    const SHARED_USER_DEMOTED_SKIPPED = "skipped";
+    //unix time of the next headless check; claimed with an atomic conditional UPDATE
+    const BLOG_NEXT_CHECK_AT_OPTION = "ihf_blog_next_check_at";
+    //unix time before which a drift-triggered re-provision must not be attempted
+    const BLOG_RESYNC_NEXT_AT_OPTION = "ihf_blog_resync_next_at";
+    //set when the next provisioning attempt must rotate regardless of throttles
+    const BLOG_FORCE_ROTATE_OPTION = "ihf_blog_force_rotate";
+
+    // Per-blog, autoload no.
+    //wp user id of this blog's own service user
+    const BLOG_SERVICE_USER_ID_OPTION = "ihf_blog_service_user_id";
+    //REST base last sent to ihf-root
+    const BLOG_REST_BASE_SENT_OPTION = "ihf_blog_rest_base_sent";
+    //REST base the deciding interactive request computed for the next send
+    const BLOG_REST_BASE_TARGET_OPTION = "ihf_blog_rest_base_target";
+    //where the last sent REST base came from: REST_BASE_SOURCE_INTERACTIVE or REST_BASE_SOURCE_FALLBACK
+    const BLOG_REST_BASE_SOURCE_OPTION = "ihf_blog_rest_base_source";
+    const REST_BASE_SOURCE_INTERACTIVE = "interactive";
+    const REST_BASE_SOURCE_FALLBACK = "fallback";
+    //set while the site is on http and application passwords are unavailable to it
+    const BLOG_AWAITING_HTTPS_OPTION = "ihf_blog_awaiting_https";
+    //consecutive drift-triggered provisioning failures, drives the backoff
+    const BLOG_RESYNC_FAILURES_OPTION = "ihf_blog_resync_failures";
+    //BLOG_APP_PASSWORD_UUID_OPTION as it read when the per-site credential was confirmed; always a string
+    const LEGACY_UUID_SNAPSHOT_OPTION = "ihf_legacy_uuid_snapshot";
+    //per-blog provisioning lock row: "<token>:<unix time>", written with INSERT IGNORE
+    const BLOG_PROVISION_LOCK_OPTION = "ihf_blog_provision_lock";
+    //unix time before which demotion must not be re-attempted on this blog
+    const SHARED_DEMOTE_NEXT_AT_OPTION = "ihf_shared_demote_next_at";
+    //"1" once a confirmed per-site uuid existed on a blog that had the shared user
+    const BLOG_HAD_LEGACY_OPTION = "ihf_blog_had_legacy";
+
+    // Network options (wp_sitemeta on multisite, wp_options on single site).
+    //wp user id of the shared "optima-express" user, pinned once ownership is proven
+    const SHARED_USER_ID_SITE_OPTION = "ihf_shared_user_id";
+    //unix time of the first per-site confirmation anywhere on the network
+    const FIRST_MIGRATION_AT_SITE_OPTION = "ihf_first_migration_at";
+    //operator-armed retirement of the shared user's passwords
+    const SHARED_RETIRE_ARMED_SITE_OPTION = "ihf_shared_retire_armed";
+    //blocks both retirement paths and nothing else
+    const SHARED_RETIRE_HOLD_SITE_OPTION = "ihf_shared_retire_hold";
+    //last live-membership count of the shared user; -1 means the count errored
+    const SHARED_LIVE_COUNT_SITE_OPTION = "ihf_shared_live_count";
+    const SHARED_LIVE_COUNT_AT_SITE_OPTION = "ihf_shared_live_count_at";
+    //unix time of the first of the consecutive zero readings
+    const SHARED_ZERO_SINCE_SITE_OPTION = "ihf_shared_zero_since";
+    const SHARED_RETIRED_AT_SITE_OPTION = "ihf_shared_retired_at";
+    const SHARED_RETIRED_COUNT_SITE_OPTION = "ihf_shared_retired_count";
+    //SHARED_RETIRED_BY_AUTO or SHARED_RETIRED_BY_OPERATOR
+    const SHARED_RETIRED_BY_SITE_OPTION = "ihf_shared_retired_by";
+    const SHARED_RETIRED_BY_AUTO = "auto";
+    const SHARED_RETIRED_BY_OPERATOR = "operator";
+    //redacted pre-purge summary (counts and ranges only; never hashes, uuids or last_ip)
+    const SHARED_RETIRED_SUMMARY_SITE_OPTION = "ihf_shared_retired_summary";
+    //daily retirement claim, taken with an atomic conditional UPDATE
+    const SHARED_RETIRE_NEXT_AT_SITE_OPTION = "ihf_shared_retire_next_at";
+    //network-scope retirement lock row, INSERT IGNORE like the per-blog lock
+    const SHARED_RETIRE_LOCK_SITE_OPTION = "ihf_shared_retire_lock";
+    //operator pause: legacy blogs stop migrating; blogs with no legacy user still provision
+    const BLOG_MIGRATION_PAUSED_SITE_OPTION = "ihf_blog_migration_paused";
+    //set once the legacy network provisioning cron event has been cleared
+    const NETWORK_PROVISION_CLEARED_SITE_OPTION = "ihf_network_provision_cleared";
+
+    // Cron hooks. Nothing else is scheduled by the per-site model.
+    const BLOG_PROVISION_RETRY_CRON_HOOK = "ihf_oe_blog_provision_retry";
+    const SHARED_DEMOTE_CRON_HOOK = "ihf_oe_shared_demote";
+    const SHARED_RETIRE_CRON_HOOK = "ihf_oe_shared_retire";
+    //legacy network sweep, cleared once by the installer
+    const NETWORK_PROVISION_CRON_HOOK = "ihf_oe_network_provision";
+
     /*
     * IDX page options
     */

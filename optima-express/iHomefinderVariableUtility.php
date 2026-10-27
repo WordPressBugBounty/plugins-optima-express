@@ -76,7 +76,12 @@ class iHomefinderVariableUtility
     {
         return new iHomefinderVariable("listingPhotoUrl", null, "Listing Photo URL");
     }
-    
+
+    public function getListingPageUrl()
+    {
+        return new iHomefinderVariable("listingPageUrl", null, "Listing Page URL");
+    }
+
     public function getListingPhotoWidth()
     {
         return new iHomefinderVariable("listingPhotoWidth", null, "Listing Photo Width");

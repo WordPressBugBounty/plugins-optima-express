@@ -145,17 +145,31 @@ class iHomefinderAjaxHandler {
     
     public function clearCache()
     {
-        // The nopriv registration of this action is used by ihf-root's ExternalCacheService
-        // to flush front-end transients server-to-server without credentials — preserve that.
-        // State-changing operations (token refresh, provisioning) must never run from an
-        // unauthenticated or non-admin request (CVE-2026-93901).
-        if (!current_user_can('manage_options')) {
-            iHomefinderCacheUtility::getInstance()->deleteItems();
+        $cache = iHomefinderCacheUtility::getInstance();
+        if (current_user_can('manage_options')) {
+            // Authenticated branch. Nothing in the plugin calls it (the two registrations in
+            // iHomefinder.php are the only references) and ihf-root's ping carries no cookie,
+            // so it is a nonce-protected cache flush and nothing more: the token refresh that
+            // used to run here is gone (MAX-4440 item 4).
+            check_ajax_referer(iHomefinderAdmin::CLEAR_CACHE_NONCE_ACTION);
+            $cache->deleteItems();
             echo true;
             wp_die();
             return;
         }
-        iHomefinderAdmin::getInstance()->activateAuthenticationToken();
+        // Nopriv branch: ihf-root's ExternalCacheService flushes front-end transients
+        // server-to-server without credentials, as it always has. When the ping also carries
+        // a timestamp and an HMAC over it made with this site's activation key, the plugin
+        // re-runs the credential-free "activate" (MAX-4440 item 1); an unsigned or badly
+        // signed ping stays cache-only, and the response is identical either way. Provisioning
+        // never runs from this request (CVE-2026-93901).
+        $cache->deleteItems();
+        if (isset($_REQUEST[iHomefinderAdmin::SIGNED_PING_TS_PARAM], $_REQUEST[iHomefinderAdmin::SIGNED_PING_SIG_PARAM])) {
+            iHomefinderAdmin::getInstance()->handleSignedCacheClearPing(
+                $_REQUEST[iHomefinderAdmin::SIGNED_PING_TS_PARAM],
+                $_REQUEST[iHomefinderAdmin::SIGNED_PING_SIG_PARAM]
+            );
+        }
         echo true;
         wp_die(); //don't remove
     }

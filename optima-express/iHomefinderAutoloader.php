@@ -19,10 +19,12 @@ class iHomefinderAutoloader
     */
     private $classes = array(
     //core files
+    "iHomefinderPostType" => "iHomefinderPostType.php",
     "iHomefinderSeoCompat" => "iHomefinderSeoCompat.php",
     "iHomefinderAdmin" => "iHomefinderAdmin.php",
     "iHomefinderAjaxHandler" => "iHomefinderAjaxHandler.php",
     "iHomefinderRestController" => "iHomefinderRestController.php",
+    "iHomefinderServiceAccountGuard" => "iHomefinderServiceAccountGuard.php",
     "iHomefinderConstants" => "iHomefinderConstants.php",
     "iHomefinderInstaller" => "iHomefinderInstaller.php",
     "iHomefinderListingInfo" => "iHomefinderListingInfo.php",
@@ -128,7 +130,8 @@ class iHomefinderAutoloader
     "iHomefinderAdminSocial" => "adminPage/iHomefinderAdminSocial.php",
     "iHomefinderAdminEmail" => "adminPage/iHomefinderAdminEmail.php",
     "iHomefinderAdminCommunityPages" => "adminPage/iHomefinderAdminCommunityPages.php",
-    "iHomefinderAdminSeoCityLinks" => "adminPage/iHomefinderAdminSeoCityLinks.php"
+    "iHomefinderAdminSeoCityLinks" => "adminPage/iHomefinderAdminSeoCityLinks.php",
+    "iHomefinderAdminMigrationStatus" => "adminPage/iHomefinderAdminMigrationStatus.php"
     );
     
     private function __construct()

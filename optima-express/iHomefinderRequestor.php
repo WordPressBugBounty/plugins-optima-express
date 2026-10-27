@@ -107,26 +107,26 @@ class iHomefinderRequestor
             "timeout" => "35",
             "ihfid" => $ihfid,
             "ihfUserInfo" => $ihfUserInfo,
-            "sslverify" => false,
+            "sslverify" => self::sslVerify($requestUrl),
             );
-            
+
             if (isset($userAgent)) {
                 $requestArgs["user-agent"] = $userAgent;
             }
-            
+
             $response = null;
             if ($this->isCacheable()) {
                 $response = iHomefinderCacheUtility::getInstance()->getItem($requestUrl);
             }
             if ($response === null) {
-                $this->logger->debug("ihfUrl: " . $requestUrl);
-                $this->logger->debug($requestArgs);
+                $this->logger->debug("ihfUrl: " . self::redactForDebug($requestUrl));
+                $this->logger->debug(self::redactForDebug($requestArgs));
                 $this->logger->debug("before request");
-                    
+
                 $response = wp_remote_get($requestUrl, $requestArgs);
-                    
+
                 $this->logger->debug("after request");
-                $this->logger->debug($response);
+                $this->logger->debug(self::redactForDebug($response));
                     
                 if (!is_wp_error($response) && $this->isCacheable() && $response["response"]["code"] < 400) {
                     iHomefinderCacheUtility::getInstance()->updateItem($requestUrl, $response, $this->getCacheExpiration());
@@ -251,21 +251,27 @@ class iHomefinderRequestor
         "ihfid" => $ihfid,
         "ihfUserInfo" => $ihfUserInfo,
         "user-agent" => $userAgent,
-        "sslverify" => false,
+        "sslverify" => self::sslVerify($requestUrl),
         );
-        
-        $this->logger->debug("ihfUrl: " . $requestUrl);
-        $this->logger->debug($requestArgs);
+
+        $this->logger->debug("ihfUrl: " . self::redactForDebug($requestUrl));
+        $this->logger->debug(self::redactForDebug($requestArgs));
         $this->logger->debug("before request");
         $response = wp_remote_post($requestUrl, $requestArgs);
         $this->logger->debug("after request");
-        $this->logger->debug($response);
-        
+        // The registration body carries the minted authenticationToken: never dump it raw.
+        $this->logger->debug(self::redactForDebug($response));
+
         $responseBodyObject = null;
+        $httpStatusCode = null;
+        $transportError = null;
         if (is_wp_error($response)) {
             $this->logger->debug("remotePostRequest failed: " . $response->get_error_message());
+            $transportError = $response;
         } else {
             $responseBody = wp_remote_retrieve_body($response);
+            $httpStatusCode = (int) wp_remote_retrieve_response_code($response);
+            $this->logger->debug("remotePostRequest status: " . $httpStatusCode);
             if ($response["response"]["code"] >= 400) {
                 $responseBodyObject = new stdClass();
                 $responseBodyObject->view = $responseBody;
@@ -284,8 +290,100 @@ class iHomefinderRequestor
         // a transport failure is reported as an absent body rather than as a null return.
         $this->remoteResponse = new iHomefinderRemoteResponse();
         $this->remoteResponse->setResponse($responseBodyObject);
+        $this->remoteResponse->setHttpStatusCode($httpStatusCode);
+        if ($transportError !== null) {
+            $this->remoteResponse->setTransportError($transportError->get_error_code(), $transportError->get_error_message());
+        }
 
         return $this->remoteResponse;
+    }
+
+    /**
+     * Copy of $value safe to hand to the debug logger: the parameter names that carry a
+     * credential (activation key, authentication token, application password) are blanked
+     * wherever they appear, whether as an array key, a query-string pair, a JSON member or an
+     * XML element. Nested arrays and objects are walked; everything else is returned as is.
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    public static function redactForDebug($value)
+    {
+        $names = array("activationToken", "authenticationToken", "wpAppPassword");
+        if (is_string($value)) {
+            $alternation = implode("|", $names);
+            $patterns = array(
+                '/\b(' . $alternation . ')=[^&\s"\'<>]*/i',
+                '/("(?:' . $alternation . ')"\s*:\s*)"(?:[^"\\\\]|\\\\.)*"/i',
+                '/(<(' . $alternation . ')(?:\s[^>]*)?>)[^<]*(<\/\2>)/i',
+            );
+            $replacements = array('$1=[redacted]', '$1"[redacted]"', '$1[redacted]$3');
+            return preg_replace($patterns, $replacements, $value);
+        }
+        if (is_array($value)) {
+            $result = array();
+            foreach ($value as $key => $item) {
+                if (is_string($key) && in_array($key, $names, true)) {
+                    $result[$key] = "[redacted]";
+                } else {
+                    $result[$key] = self::redactForDebug($item);
+                }
+            }
+            return $result;
+        }
+        if (is_object($value) && !($value instanceof WP_Error)) {
+            $result = new stdClass();
+            foreach (get_object_vars($value) as $key => $item) {
+                if (in_array($key, $names, true)) {
+                    $result->$key = "[redacted]";
+                } else {
+                    $result->$key = self::redactForDebug($item);
+                }
+            }
+            return $result;
+        }
+        return $value;
+    }
+
+    /**
+     * Whether the certificate is verified on a request to the service. True by default on every
+     * GET and on the activate POST. Two escape hatches for a host whose CA bundle cannot verify
+     * the service certificate, so a broken bundle costs a support call and not all IDX content:
+     * define('IHF_SSLVERIFY', false) in wp-config.php, or the filter
+     * add_filter('ihf_sslverify', function ($verify, $url) { ... }, 10, 2), which runs after the
+     * constant so either can be used. Neither is set by default and neither is logged.
+     *
+     * @param string $url the request URL, passed to the filter and never logged here
+     * @return bool
+     */
+    private static function sslVerify($url)
+    {
+        $verify = defined('IHF_SSLVERIFY') ? (bool) IHF_SSLVERIFY : true;
+        return (bool) apply_filters('ihf_sslverify', $verify, $url);
+    }
+
+    /**
+     * The one place the plugin's service endpoint is spelled out. Always https: the request
+     * carries the activation key, the authentication token and, on the provisioning path, a
+     * freshly minted application password, so the scheme is never taken from is_ssl() (an http
+     * site used to send all three in the clear). IHF_SERVICE_HOST, when defined in wp-config.php,
+     * replaces the host only, and only outside a production environment.
+     *
+     * @return string
+     */
+    public static function getServiceUrl()
+    {
+        $externalUrl = iHomefinderConstants::EXTERNAL_URL;
+        $slash = strpos($externalUrl, "/");
+        $host = $slash === false ? $externalUrl : substr($externalUrl, 0, $slash);
+        $path = $slash === false ? "" : substr($externalUrl, $slash);
+        if (defined("IHF_SERVICE_HOST") && is_string(IHF_SERVICE_HOST) && IHF_SERVICE_HOST !== "") {
+            $environment = function_exists("wp_get_environment_type") ? wp_get_environment_type() : "production";
+            if ($environment !== "production") {
+                $host = IHF_SERVICE_HOST;
+            }
+        }
+        return "https://" . $host . $path;
     }
     
     public function hasParameter($name)
@@ -362,13 +460,6 @@ class iHomefinderRequestor
     
     private function getExternalUrl()
     {
-        $result = null;
-        $scheme = "http";
-        if (is_ssl()) {
-            $scheme = "https";
-        }
-        $result .= $scheme . "://";
-        $result .= iHomefinderConstants::EXTERNAL_URL;
-        return $result;
+        return self::getServiceUrl();
     }
 }

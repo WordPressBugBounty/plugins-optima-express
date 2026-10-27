@@ -25,7 +25,7 @@ class iHomefinderListingDetailVirtualPageImpl extends iHomefinderAbstractVirtual
     
     public function getMetaTags()
     {
-        $default = "<meta property=\"og:image\" content=\"{listingPhotoUrl}\" />\n<meta property=\"og:image:width\" content=\"{listingPhotoWidth}\" />\n<meta property=\"og:image:height\" content=\"{listingPhotoHeight}\" />\n<meta name=\"description\" content=\"Photos and Property Details for {listingAddress}. Get complete property information, maps, street view, schools, walk score and more. Request additional information, schedule a showing, save to your property organizer.\" />\n<meta name=\"keywords\" content=\"{listingAddress}, {listingCity} Real Estate, {listingCity} Property for Sale\" />";
+        $default = "<link rel=\"canonical\" href=\"{listingPageUrl}\" />\n<meta property=\"og:image\" content=\"{listingPhotoUrl}\" />\n<meta property=\"og:image:width\" content=\"{listingPhotoWidth}\" />\n<meta property=\"og:image:height\" content=\"{listingPhotoHeight}\" />\n<meta name=\"description\" content=\"Photos and Property Details for {listingAddress}. Get complete property information, maps, street view, schools, walk score and more. Request additional information, schedule a showing, save to your property organizer.\" />\n<meta name=\"keywords\" content=\"{listingAddress}, {listingCity} Real Estate, {listingCity} Property for Sale\" />";
         return $this->getText(iHomefinderConstants::OPTION_VIRTUAL_PAGE_META_TAGS_DETAIL, $default);
     }
     
@@ -39,6 +39,7 @@ class iHomefinderListingDetailVirtualPageImpl extends iHomefinderAbstractVirtual
         $variableUtility->getListingPhotoUrl(),
         $variableUtility->getListingPhotoWidth(),
         $variableUtility->getListingPhotoHeight(),
+        $variableUtility->getListingPageUrl(),
         $variableUtility->getListingPrice(),
         $variableUtility->getListingSquareFeet(),
         $variableUtility->getListingBedrooms(),

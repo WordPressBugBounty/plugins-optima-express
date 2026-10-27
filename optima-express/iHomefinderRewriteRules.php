@@ -8,12 +8,9 @@ if (! defined('ABSPATH')) {
 /**
  * Singleton implementation of iHomefinderRewriteRules
  *
- * All iHomefinder requests are directed to the $rootPageName, which tries to load a WordPress page that
- * does not exist. We do not want to load a real page. We get the content from the iHomefinder services
- * and display it as a virtual WordPress post.
- *
- * The rewrite rules below set a variable iHomefinderConstants::IHF_TYPE_URL_VAR that is used to determine
- * which VirtualPage retrieves the content from iHomefinder
+ * Each IDX page type has a real CPT post (ihf_virtual_page) registered by iHomefinderPostType.
+ * Rewrite rules route IDX URLs directly to the matching CPT post via the post type query var,
+ * setting iHomefinderConstants::IHF_TYPE_URL_VAR so the dispatcher knows which virtual page to render.
  *
  * @author ihomefinder
  */
@@ -21,13 +18,9 @@ class iHomefinderRewriteRules
 {
 
     private static $instance;
-    private $urlFactory;
-    private $rootPageName;
 
     private function __construct()
     {
-        $this->rootPageName = "index.php?pagename=non_existent_page";
-        $this->logger = iHomefinderLogger::getInstance();
     }
 
     public static function getInstance()
@@ -81,7 +74,8 @@ class iHomefinderRewriteRules
         preg_match_all("/\{(.*?)\}/", $pattern, $matches);
         $matches = $matches[1];
         $regex = $pattern;
-        $redirect = $this->rootPageName . "&" . iHomefinderConstants::IHF_TYPE_URL_VAR . "=" . $type;
+        $redirect = "index.php?" . iHomefinderPostType::POST_TYPE . "=" . $type
+                  . "&" . iHomefinderConstants::IHF_TYPE_URL_VAR . "=" . $type;
         foreach ($matches as $key => $value) {
             $key += 1;
             if (!empty($value)) {

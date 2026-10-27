@@ -322,6 +322,13 @@ class iHomefinderAdminPageConfig extends iHomefinderAdminAbstractPage
                         'http-equiv' => true,
                         'charset' => true,
                     ),
+                    'link' => array(
+                        'rel' => true,
+                        'href' => true,
+                        'type' => true,
+                        'hreflang' => true,
+                        'media' => true,
+                    ),
                 );
                 return wp_kses($input, $allowed_tags);
             }

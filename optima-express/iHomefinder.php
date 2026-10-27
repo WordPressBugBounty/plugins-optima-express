@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
  * Includes search and listing pages, widgets and shortcodes.
  * Requires an IDX account from iHomefinder.
  * Get a paid account with data from your MLS.
- * Version: 8.7.8
+ * Version: 9.0.0
  * Author: ihomefinder
  * Author URI: http://www.ihomefinder.com
  * License: GPLv2 or later
@@ -25,6 +25,20 @@ if (! defined('ABSPATH')) {
  */
 
 require "iHomefinderAutoloader.php";
+
+// Operator tunables for the per-site blog credential model. Each may be set in wp-config.php;
+// these are the defaults. IHF_BLOG_MIGRATION_DISABLED (the absolute kill switch), IHF_SERVICE_HOST
+// (dev-only host override) and IHF_SSLVERIFY (certificate verification opt-out for a host with a
+// broken CA bundle; see iHomefinderRequestor::sslVerify()) have no default and are only ever
+// read with defined().
+if (!defined('IHF_SHARED_RETIRE_ZERO_DAYS')) {
+    // Consecutive daily zero-membership readings before the shared user's passwords are purged.
+    define('IHF_SHARED_RETIRE_ZERO_DAYS', 7);
+}
+if (!defined('IHF_SIGNED_PING_WINDOW')) {
+    // Seconds either side of now within which a signed cache-clear ping's timestamp is accepted.
+    define('IHF_SIGNED_PING_WINDOW', 300);
+}
 
 $autoloader = iHomefinderAutoloader::getInstance();
 $installer = iHomefinderInstaller::getInstance();
@@ -49,48 +63,35 @@ add_filter("upgrader_post_install", array($installer, "upgrade"), 10, 2);
 // Deferred blog-provisioning retry, scheduled from front-end requests so the blocking
 // round trip runs in the cron request rather than in front of a visitor's page render.
 // Registered unconditionally: WP-Cron fires in its own request, which is not is_admin().
-add_action('ihf_oe_blog_provision_retry', array($admin, 'retryBlogProvisioningIfPending'));
+// Bound to the cron runner, not the admin_init scheduler: a cron request has no user, and the
+// scheduler's login test would have made the event a no-op.
+add_action(iHomefinderConstants::BLOG_PROVISION_RETRY_CRON_HOOK, array($admin, 'runBlogProvisioningRetry'));
 
-// Multisite network provisioning — ensures all sub-sites get registered with ihf-root
-// on network-level plugin upgrade or activation, without requiring per-site admin action.
+// Shared user demotion (per blog, once its per-site credential is confirmed and the grace has
+// passed) and the daily network retirement evaluation. Both are cron handlers; the hourly tick
+// schedules them and the demoter also runs as the tick's fallback.
+add_action(iHomefinderConstants::SHARED_DEMOTE_CRON_HOOK, array($admin, 'demoteSharedUserIfDue'));
+add_action(iHomefinderConstants::SHARED_RETIRE_CRON_HOOK, array($admin, 'runSharedRetireCron'));
+
+// A changed home or site URL marks the blog for a REST base re-sync; the hourly tick's
+// get_rest_url() comparison is the primary detector, these are the belt.
+add_action('update_option_home', array($admin, 'markBlogResyncPending'));
+add_action('update_option_siteurl', array($admin, 'markBlogResyncPending'));
+
+// The one sanctioned option hook: clearing the registration key to an empty value, by any
+// writer, revokes this blog's service credential. It never activates anything.
+add_action('update_option_' . iHomefinderConstants::ACTIVATION_TOKEN_OPTION, array($admin, 'handleActivationTokenUpdated'), 10, 2);
+
 if (is_multisite()) {
-    // Cron action handler — registered in the main bootstrap path so it is available
-    // when WP-Cron fires the event in a separate HTTP context.
-    add_action('ihf_oe_network_provision', array($installer, 'upgradeNetwork'));
+    // A sub-site whose domain or path changed is marked for a REST base re-sync.
+    add_action('wp_update_site', array($admin, 'handleSiteUpdated'), 10, 2);
 
-    // Schedules a network provisioning sweep via WP-Cron, or runs it synchronously
-    // when WP-Cron is disabled (e.g. DISABLE_WP_CRON = true with an external cron runner).
-    $scheduleOrRunNetworkProvision = function () use ($installer) {
-        if (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON) {
-            $installer->upgradeNetwork();
-        } elseif (!wp_next_scheduled('ihf_oe_network_provision')) {
-            wp_schedule_single_event(time(), 'ihf_oe_network_provision');
-        }
-    };
-
-    // Schedule a network provisioning sweep when this plugin is updated via the network admin.
-    add_action('upgrader_process_complete', function ($upgrader, $hook_extra) use ($scheduleOrRunNetworkProvision) {
-        if (
-            !isset($hook_extra['type'], $hook_extra['action']) ||
-            $hook_extra['type'] !== 'plugin' ||
-            $hook_extra['action'] !== 'update'
-        ) {
-            return;
-        }
-        $slug = plugin_basename(__FILE__);
-        $inSingular = isset($hook_extra['plugin']) && $hook_extra['plugin'] === $slug;
-        $inPlural   = isset($hook_extra['plugins']) && in_array($slug, $hook_extra['plugins'], true);
-        if ($inSingular || $inPlural) {
-            $scheduleOrRunNetworkProvision();
-        }
-    }, 10, 2);
-
-    // Schedule a network provisioning sweep when this plugin is network-activated.
-    add_action('activated_plugin', function ($plugin) use ($scheduleOrRunNetworkProvision) {
-        if (is_network_admin() && $plugin === plugin_basename(__FILE__)) {
-            $scheduleOrRunNetworkProvision();
-        }
-    });
+    // A sub-site restored to service (un-archived, un-spammed, undeleted) that still runs on
+    // the shared credential is flagged for rotation now: while retired it was excluded from
+    // the retirement count and its shared password may already be gone.
+    add_action('unarchive_blog', array($admin, 'handleBlogRestored'));
+    add_action('make_ham_blog', array($admin, 'handleBlogRestored'));
+    add_action('make_undelete_blog', array($admin, 'handleBlogRestored'));
 
     // Provision new sub-sites when they are created, if an activation token is already set.
     add_action('wp_initialize_site', function ($new_site) {
@@ -134,17 +135,57 @@ add_action("rest_api_init", function() {
     iHomefinderRestController::getInstance()->registerRoutes();
 });
 
+// Service account guard: scopes every user carrying ihf_service_account (this site's own
+// Optima Express service user, and the legacy shared one until the site migrates) to the four
+// REST calls blog posting needs, closes its login surfaces, restricts its uploads to images and
+// reserves its login names. Registered unconditionally: REST, XML-RPC and the login form are
+// not is_admin(), and the hooks are read-only tests that cost one user meta read.
+iHomefinderServiceAccountGuard::getInstance()->register();
+
+// CPT — registered outside is_admin() for two reasons:
+// 1. register_post_type() must run on every request (admin and front-end) so
+//    WordPress's query pipeline, get_posts(), and wp_insert_post() all know the type.
+// 2. deleted_post and trashed_post fire in WP-CLI (which sets is_admin()=true),
+//    the primary path by which a developer would accidentally delete a virtual page.
+$postType = iHomefinderPostType::getInstance();
+add_action("init", array($postType, "register"), 0);
+add_action("deleted_post", array($postType, "recreateDeletedPost"), 10, 2);
+add_action("trashed_post", array($postType, "handleTrashedPost"), 10, 1);
+
 if (is_admin()) {
     // Recover sites whose blog provisioning never completed. upgrade() attempts it only on
     // a version change and stamps the version first, so a failed attempt is never retried
     // by it. Admin requests only: provisioning makes a blocking HTTP call with a 200s
     // timeout, which must never sit in front of a visitor-facing page render.
     //
-    // Priority 19 runs first: it flags a re-provision when a previously confirmed credential
-    // has been deleted out from under us (which the option-only pending check cannot see), so
-    // the retry at priority 20 picks it up in this same request.
-    add_action("admin_init", array($admin, "flagBlogReprovisionIfCredentialMissing"), 19);
+    // Priority 19 is the hourly claimed tick: it notices a credential that was deleted out
+    // from under us, a shared-way re-provision by an older node, REST base drift, and a
+    // demotion that is due, and marks the blog, so the runner at priority 20 picks the work
+    // up in this same request. Both return on ajax and anonymous requests themselves.
+    add_action("admin_init", array($admin, "runHeadlessBlogChecks"), 19);
     add_action("admin_init", array($admin, "retryBlogProvisioningIfPending"), 20);
+
+    // Register page actions (admin-post.php): register a key, refresh the registration,
+    // unregister, reset the blog connection. Authenticated hooks only, never the anonymous variant;
+    // each handler checks its own nonce and manage_options. The page registers no settings
+    // group, so options.php never touches either token (MAX-4432).
+    add_action("admin_post_" . iHomefinderAdmin::REGISTER_KEY_ACTION, array($admin, "handleRegisterKey"));
+    add_action("admin_post_" . iHomefinderAdmin::REFRESH_REGISTRATION_ACTION, array($admin, "handleRefreshRegistration"));
+    add_action("admin_post_" . iHomefinderAdmin::UNREGISTER_ACTION, array($admin, "handleUnregister"));
+    add_action("admin_post_" . iHomefinderAdmin::RESET_BLOG_CONNECTION_ACTION, array($admin, "handleResetBlogConnection"));
+
+    // Blog credential migration progress and controls (Step 12). The page lives under Network
+    // Admin > Settings on multisite; a single site gets a section on the Register page. The four
+    // controls post to admin-post.php; authenticated hooks only, each handler checks its own
+    // nonce and manage_network_options (single site: manage_options).
+    $migrationStatus = iHomefinderAdminMigrationStatus::getInstance();
+    if (is_multisite()) {
+        add_action("network_admin_menu", array($migrationStatus, "registerNetworkMenu"));
+    }
+    add_action("admin_post_" . iHomefinderAdminMigrationStatus::PAUSE_TOGGLE_ACTION, array($migrationStatus, "handlePauseToggle"));
+    add_action("admin_post_" . iHomefinderAdminMigrationStatus::RETIRE_ARM_TOGGLE_ACTION, array($migrationStatus, "handleRetireArmToggle"));
+    add_action("admin_post_" . iHomefinderAdminMigrationStatus::RETIRE_HOLD_TOGGLE_ACTION, array($migrationStatus, "handleRetireHoldToggle"));
+    add_action("admin_post_" . iHomefinderAdminMigrationStatus::RETIRE_EVALUATE_ACTION, array($migrationStatus, "handleRetireEvaluateNow"));
 
     add_action("admin_enqueue_scripts", array($admin, "addScripts"));
     add_action("admin_menu", array($admin, "createAdminMenu"));
@@ -174,14 +215,22 @@ if (is_admin()) {
     // no external runner, front-end recovery is knowingly given up and the admin path is
     // the remaining route.
     add_action("init", function () use ($admin) {
-        // Flag first (throttled) so a confirmed-then-deleted credential becomes pending and is
-        // recovered from front-end traffic too, not only from a wp-admin visit.
-        $admin->flagBlogReprovisionIfCredentialMissing();
-        if (!$admin->blogProvisioningIsPending()) {
+        // The hourly claimed tick runs from front-end traffic too, so a site nobody logs into
+        // still notices a lost credential or a due demotion. It marks; it never calls out.
+        $admin->runHeadlessBlogChecks();
+        if (!$admin->blogProvisioningIsPending() || $admin->migrationHaltedFor(get_current_blog_id())) {
             return;
         }
-        if (!wp_next_scheduled('ihf_oe_blog_provision_retry')) {
-            wp_schedule_single_event(time(), 'ihf_oe_blog_provision_retry');
+        // Only when the runner would actually attempt: not inside the drift backoff, and not
+        // while the retry throttle is set (the transient outlives the request that set it).
+        if ((int) get_option(iHomefinderConstants::BLOG_RESYNC_NEXT_AT_OPTION, 0) > time()) {
+            return;
+        }
+        if (get_transient(iHomefinderAdmin::BLOG_PROVISION_RETRY_TRANSIENT . get_current_blog_id())) {
+            return;
+        }
+        if (!wp_next_scheduled(iHomefinderConstants::BLOG_PROVISION_RETRY_CRON_HOOK)) {
+            wp_schedule_single_event(time(), iHomefinderConstants::BLOG_PROVISION_RETRY_CRON_HOOK);
         }
     }, 20);
     add_action("init", array($enqueueResource, "enqueue"));
@@ -201,22 +250,28 @@ if (is_admin()) {
             echo "\n" . $faqScript . "\n";
         }
     });
-    
+
+    add_action('parse_request', array($virtualPageDispatcher, 'earlyRemoveCaching'), 1);
     add_action( 'wp', array( $virtualPageDispatcher, 'setupVirtualGlobals' ), 0 );
-    add_filter( 'posts_pre_query', array( $virtualPageDispatcher, 'shortCircuitVirtualPosts' ), 10, 2 );
     add_filter("template_include", array( $virtualPageDispatcher, 'templateInclude' ), 99);
     add_filter("render_block_data", array( $virtualPageDispatcher, 'fixTemplatePartThemeAttribute' ), 1, 3);
-    add_filter("render_block_core_post_content", array( $virtualPageDispatcher, 'renderVirtualPostContentBlock' ), 10, 2 );
-    add_action("pre_get_posts", array( $virtualPageDispatcher, 'primeVirtualQuery' ), 0 );
-    add_filter("the_content", array($virtualPageDispatcher, "getContent"), 20);
-    add_filter("the_excerpt", array($virtualPageDispatcher, "getExcerpt"), 20);
     add_filter('render_block_core_post_content', array( $virtualPageDispatcher, 'renderVirtualPostContentBlock' ), 10, 2);
     add_filter('render_block', array( $virtualPageDispatcher, 'injectVirtualContentIntoTemplateOnce' ), 10, 2);
+    add_filter("the_content",     array($virtualPageDispatcher, "getContent"), 20);
+    add_filter("get_the_content", array($virtualPageDispatcher, "getContent"), 20);
+    add_filter("the_excerpt", array($virtualPageDispatcher, "getExcerpt"), 20);
+    add_filter("the_title", array($virtualPageDispatcher, 'filterTitle'), 20, 2);
     
     add_filter("comments_array", array($virtualPageDispatcher, "clearComments"));
     add_action("sm_buildmap", array($admin, "addSitemapForGoogleXmlSitemaps"));
     add_filter("wpseo_sitemap_page_content", array($admin, "addSitemapForYoastWordPressSeo"));
     iHomefinderSeoCompat::initialize();
+}
+
+// WP-CLI: read-only migration status and lists. Registered only under WP-CLI.
+if (defined('WP_CLI') && WP_CLI) {
+    require_once dirname(__FILE__) . '/cli/class-ihf-blog-cli.php';
+    iHomefinderBlogCli::register();
 }
 
 /* shortcode */

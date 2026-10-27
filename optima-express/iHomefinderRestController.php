@@ -5,10 +5,11 @@
  * Exposes: POST /wp-json/optima-express/v1/blog-post
  *
  * Authentication: WP Application Passwords (Basic Auth). WordPress validates
- * credentials before the permission_callback runs. The dedicated `optima-express`
- * WP user (minimum role: author with publish_posts capability) is created once
- * per site during provisioning. Requires WordPress 5.6+ (Application Passwords
- * were introduced in 5.6).
+ * credentials before the permission_callback runs. The caller is this site's own
+ * Optima Express service user (one per site, Author role, created during
+ * provisioning and pinned by iHomefinderAdmin::findServiceUser()); before a site
+ * has migrated it is the legacy shared service user. Requires WordPress 5.6+
+ * (Application Passwords were introduced in 5.6).
  *
  * SEO plugin support (priority order):
  *   1. Yoast SEO    — detected via class_exists('WPSEO_Meta')
@@ -35,6 +36,9 @@ class iHomefinderRestController
 
     /** @var iHomefinderRestController|null */
     private static $instance;
+
+    /** Display name of the site's service user in the authors list (customer-visible). */
+    const SYSTEM_ACCOUNT_LABEL = 'Optima Express (System Account)';
 
     private function __construct()
     {
@@ -125,8 +129,10 @@ class iHomefinderRestController
         $seoParam = $request->get_param("seo");
         $seo = (is_array($seoParam)) ? $seoParam : array();
 
+        // The author override is honored only for the plugin's own service account, and only
+        // when the target can actually publish here; anything else posts as the caller.
         $authorId   = intval($request->get_param("author"));
-        $postAuthor = ($authorId > 0) ? $authorId : get_current_user_id();
+        $postAuthor = $this->resolvePostAuthor($authorId);
 
         // 2. Validate required fields
         if (empty($title)) {
@@ -248,7 +254,8 @@ class iHomefinderRestController
 
     /**
      * Returns a list of WordPress users capable of publishing posts on the current subsite.
-     * The Optima Express system user is always included with a fixed display name.
+     * The site's Optima Express service user is listed with a fixed display name when it can
+     * publish here; it is resolved through its pin and blog-bound ownership, never by login.
      *
      * @param WP_REST_Request $request
      * @return WP_REST_Response
@@ -262,7 +269,7 @@ class iHomefinderRestController
             'blog_id'    => $blogId,
         ));
 
-        $systemUserLogin = 'optima-express';
+        $systemUserId    = $this->resolveSystemUserId();
         $systemUserFound = false;
         $result          = array();
 
@@ -277,8 +284,8 @@ class iHomefinderRestController
 
             $displayName = $user->display_name;
 
-            if ($user->user_login === $systemUserLogin) {
-                $displayName     = 'Optima Express (System Account)';
+            if ($systemUserId > 0 && (int) $user->ID === $systemUserId) {
+                $displayName     = self::SYSTEM_ACCOUNT_LABEL;
                 $systemUserFound = true;
             }
 
@@ -288,19 +295,81 @@ class iHomefinderRestController
             );
         }
 
-        if (!$systemUserFound) {
-            $systemUser = get_user_by('login', $systemUserLogin);
-            if ($systemUser !== false) {
-                $result[] = array(
-                    'id'           => (int) $systemUser->ID,
-                    'display_name' => 'Optima Express (System Account)',
-                );
-            } else {
-                error_log('[OE] getAuthors: optima-express system user not found. Site may not be provisioned correctly.');
-            }
+        // get_users('capability') needs a role that grants publish_posts; a user given the
+        // capability directly is missed by it, so the service user is appended when it can
+        // publish here but was not in the query result. Never appended without the capability.
+        if (!$systemUserFound && $systemUserId > 0 && $this->canAuthorHere($systemUserId)) {
+            $result[] = array(
+                'id'           => $systemUserId,
+                'display_name' => self::SYSTEM_ACCOUNT_LABEL,
+            );
         }
 
         return new WP_REST_Response($result, 200);
+    }
+
+    /**
+     * The id of the account listed as the system author: this blog's per-site service user
+     * (pin, then get_user_by('ID'), then blog-bound ownership, all read-only), or, before the
+     * blog has migrated, the legacy shared service user when it verifiably belongs to the
+     * plugin. 0 when neither resolves. Nothing here writes a pin, a meta row or an option.
+     *
+     * @return int
+     */
+    private function resolveSystemUserId()
+    {
+        $admin = iHomefinderAdmin::getInstance();
+        $serviceUser = $admin->findServiceUser();
+        if ($serviceUser instanceof WP_User) {
+            return (int) $serviceUser->ID;
+        }
+        $shared = $admin->findSharedLogin();
+        if ($shared instanceof WP_User && $admin->sharedUserIsOwned($shared)) {
+            return (int) $shared->ID;
+        }
+        return 0;
+    }
+
+    /**
+     * Post author for createBlogPost(): the requested author when the caller is the plugin's
+     * service account (carries BLOG_SERVICE_ACCOUNT_META) and the target is a member of this
+     * blog who can publish posts; otherwise the caller itself.
+     *
+     * @param int $requestedAuthorId
+     * @return int
+     */
+    private function resolvePostAuthor($requestedAuthorId)
+    {
+        $callerId = get_current_user_id();
+        if ($requestedAuthorId <= 0 || $requestedAuthorId === $callerId) {
+            return $callerId;
+        }
+        if (get_user_meta($callerId, iHomefinderConstants::BLOG_SERVICE_ACCOUNT_META, true) !== '1') {
+            return $callerId;
+        }
+        if (!$this->canAuthorHere($requestedAuthorId)) {
+            return $callerId;
+        }
+        return $requestedAuthorId;
+    }
+
+    /**
+     * True when $userId exists, is a member of the current blog (every existing user is, on a
+     * single site) and can publish posts here.
+     *
+     * @param int $userId
+     * @return bool
+     */
+    private function canAuthorHere($userId)
+    {
+        $userId = (int) $userId;
+        if ($userId <= 0 || !get_userdata($userId)) {
+            return false;
+        }
+        if (is_multisite() && !is_user_member_of_blog($userId, get_current_blog_id())) {
+            return false;
+        }
+        return user_can($userId, 'publish_posts');
     }
 
     // ---------------------------------------------------------------------------

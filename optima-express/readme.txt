@@ -3,11 +3,11 @@ Contributors: iHomefinder
 Tags: MLS IDX Search, IDX Plugin, WordPress IDX, Real Estate, Real Estate Search
 Author URI: https://www.ihomefinder.com
 Plugin URI: https://www.ihomefinder.com/idx-plugin-for-wordpress/
-Requires at least: 4.2.0
+Requires at least: 5.2
 Tested up to: 7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 8.7.8
+Stable tag: 9.0.0
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -117,6 +117,9 @@ Please visit [our website](https://www.ihomefinder.com?utm_source=WordPress&utm_
 = Which WordPress themes do you recommend for use with Optima Express? =
 Optima Express is compatible with most WordPress themes, and will automatically inherit the styling of your chosen theme. Unlike many other IDX plugins for WordPress, Optima Express looks great without requiring any styling or other adjustments.
 
+= Where do I report security bugs found in this plugin? =
+Please report security bugs found in the source code of the Optima Express plugin through the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/584f1150-8174-493d-8a16-93d4e63edacc). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
+
 
 
 == Screenshots ==
@@ -146,6 +149,12 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Changelog ==
+
+= 9.0.0 =
+* Migrated IDX virtual pages to a real WordPress Custom Post Type for improved compatibility with themes, plugins, and caching layers
+* Fixed a caching issue where sites using caching plugins or host-level caching could display incorrect titles or content on IDX pages
+* Improved the reliability and security of the AI Blog Post connection: each site now uses its own dedicated service account
+* Fixed IDX pages not using the page template selected in the plugin settings
 
 = 8.7.8 =
 * Fixed listing pages losing their page title, or showing the wrong title or a broken link when shared on social media, when an SEO plugin such as Yoast is active.
@@ -692,6 +701,9 @@ Optima Express is compatible with most WordPress themes, and will automatically 
 
 
 == Upgrade Notice ==
+
+= 9.0.0 =
+Migrates IDX virtual pages to a real WordPress Custom Post Type, gives each site its own dedicated AI Blog Post service account, fixes a caching issue where sites using caching plugins or host-level caching could display incorrect titles or content on IDX pages, and restores the selected IDX page template. Upgrades automatically — no action required.
 
 = 8.7.8 =
 Fixes listing pages losing their page title, or showing the wrong title or a broken link when shared on social media, when an SEO plugin such as Yoast is active.

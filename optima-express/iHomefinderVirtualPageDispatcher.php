@@ -71,17 +71,8 @@ class iHomefinderVirtualPageDispatcher
 
         $this->initialized = true;
 
-        // Mark query as a singular page request (for block template selection).
-        $query->is_404        = false;
-        $query->is_home       = false;
-        $query->is_front_page = false;
-        $query->is_posts_page = false;
-        $query->is_archive    = false;
-        $query->is_search     = false;
-        $query->is_single     = false;
-
-        $query->is_page      = true;
-        $query->is_singular  = true;
+        // With real CPT posts WordPress sets is_singular, is_404=false, queried_object
+        // etc. naturally — no manual flag overrides needed here.
 
         // Build the virtual page implementation + content.
         $this->virtualPage = iHomefinderVirtualPageFactory::getInstance()->getVirtualPage( $type );
@@ -98,6 +89,10 @@ class iHomefinderVirtualPageDispatcher
 
         $this->removeFilters();
         $this->removeCaching();
+        if ( isset( $query->post ) && $query->post instanceof WP_Post ) {
+            wp_cache_delete( $query->post->ID, 'posts' );
+            wp_cache_delete( $query->post->ID, 'post_meta' );
+        }
     }
     /**
      * removes filters that can cause issues on virtual pages
@@ -130,7 +125,7 @@ class iHomefinderVirtualPageDispatcher
         "DONOTCACHEDB",
         "DONOTMINIFY",
         "DONOTCDN",
-        "DONOTCACHCEOBJECT"
+        "DONOTCACHEOBJECT"
         );
         foreach ($constants as $constant) {
             if (!defined($constant)) {
@@ -140,16 +135,46 @@ class iHomefinderVirtualPageDispatcher
     }
     
     /**
-     * Cleanup state after filtering. This fixes an issue
-     * where widgets display different loop content, such
-     * as featured posts.
+     * Defines caching-suppression constants as early as possible so that
+     * caching plugins (WP Super Cache, W3 Total Cache, etc.) that inspect
+     * DONOTCACHEPAGE during 'init' or 'template_redirect' see the flag in time.
+     *
+     * Hooked to 'parse_request' (priority 1) — fires after rewrite rules have
+     * been applied and query vars are populated, but before any caching plugin
+     * template_redirect checks run.
+     *
+     * @param WP $wp
      */
-    private function afterFilter()
+    public function earlyRemoveCaching($wp)
     {
-        // Do not reset $this->initialized during the request.
-        // Block themes may render content multiple times and we rely on initialized state.
+        if (empty($wp->query_vars[iHomefinderConstants::IHF_TYPE_URL_VAR])) {
+            return;
+        }
+
+        $this->removeCaching(); // DONOTCACHEPAGE etc.
+
+        // LiteSpeed Cache (6M+ installs) — has its own action-based suppression API;
+        // ignores both DONOTCACHEPAGE constants and HTTP headers set via PHP.
+        do_action('litespeed_control_set_nocache', 'ihf_virtual_page');
+
+        // Sets Cache-Control: no-cache, no-store, must-revalidate + Pragma/Expires.
+        // Respected by WP Engine (Nginx/EverCache), Kinsta, SiteGround (Nginx FastCGI),
+        // and CDN edge caches. PHP constants are invisible to these server-level caches.
+        nocache_headers();
+
+        // Cloudflare APO serves pages from edge nodes and does not reliably respect
+        // Cache-Control from origin — this header is its explicit cache bypass signal.
+        header('CF-Edge-Cache: no-cache');
+
+        // Fastly and some Varnish-based hosts use Surrogate-Control instead of
+        // Cache-Control to control edge/proxy caching behavior.
+        header('Surrogate-Control: no-store');
+
+        // Nginx proxy_cache respects X-Accel-Expires; setting it to 0 prevents
+        // caching on hosts running Nginx as a reverse proxy.
+        header('X-Accel-Expires: 0');
     }
-    
+
     /**
      * We identify iHomefinder requests based on the query_var
      * iHomefinderConstants::IHF_TYPE_URL_VAR.
@@ -161,21 +186,6 @@ class iHomefinderVirtualPageDispatcher
      *
      * @param $posts
      */
-    public function postCleanUp( $posts, $query )
-    {
-        if ( ! $query instanceof WP_Query || ! $query->is_main_query() ) {
-            return $posts;
-        }
-
-        $type = get_query_var(iHomefinderConstants::IHF_TYPE_URL_VAR);
-        if ( empty( $type ) ) {
-            return $posts;
-        }
-
-        // primeVirtualQuery already injected the fake post.
-        return $query->posts ?: $posts;
-    }
-    
     public function templateInclude( $template ) {
         global $wp_query;
         $this->initialize( $wp_query );
@@ -204,7 +214,11 @@ class iHomefinderVirtualPageDispatcher
             }
 
             // Always provide sensible fallbacks.
+            // Include single.php because ihf_virtual_page is a CPT, and block
+            // themes default to single-{post_type}.html → single.html hierarchy
+            // rather than page.html for custom post types.
             $candidates[] = 'page.php';
+            $candidates[] = 'single.php';
             $candidates[] = 'index.php';
 
             $phpTemplate = locate_template( $candidates );
@@ -218,7 +232,15 @@ class iHomefinderVirtualPageDispatcher
                 }
                 $blockCandidateSlug = $slug ? 'page-' . $slug : 'page';
 
+                // Prefer page.html (most themes have this and it gives the right layout).
                 $maybe = locate_block_template( $phpTemplate, $blockCandidateSlug, $candidates );
+                if ( ! empty( $maybe ) ) {
+                    return $maybe;
+                }
+
+                // CPT fallback: block themes that don't have page.html will have
+                // single.html (the default for custom post types).
+                $maybe = locate_block_template( $phpTemplate, 'single', $candidates );
                 if ( ! empty( $maybe ) ) {
                     return $maybe;
                 }
@@ -228,11 +250,16 @@ class iHomefinderVirtualPageDispatcher
             return $phpTemplate ?: $template;
         }
 
-        // Classic theme behavior: keep your original logic.
+        // Classic theme behavior.
         if ( ! empty( $virtualPageTemplate ) ) {
-            // Check if this is a plugin-supplied template first.
-            $pluginTemplate = plugin_dir_path( __FILE__ ) . 'templates/' . basename( $virtualPageTemplate );
-            if ( file_exists( $pluginTemplate ) ) {
+            // A plugin-supplied template (templates/ihf-divi-full-width.php) is
+            // selected by file name like a theme template, but locate_template()
+            // only searches the child and parent theme, so resolve it here first.
+            // Classic themes only: the template calls get_header()/get_footer(),
+            // which a block theme can only satisfy with WordPress's theme-compat
+            // files, and the dropdown offers it on Divi alone.
+            $pluginTemplate = $this->locatePluginTemplate( $virtualPageTemplate );
+            if ( ! empty( $pluginTemplate ) ) {
                 return $pluginTemplate;
             }
 
@@ -242,7 +269,33 @@ class iHomefinderVirtualPageDispatcher
             }
         }
 
-        return $template;
+        // Prefer page.php over single.php: classic themes render post-entry
+        // metadata (date, author, categories) on singles but not on pages.
+        // singular.php sits between them because it is what WordPress itself
+        // picks for a page on a theme with no page.php (Twenty Twenty, for one);
+        // without it such a theme fell through to index.php.
+        $found = locate_template( array( 'page.php', 'singular.php', 'single.php', 'index.php' ) );
+        return $found ?: $template;
+    }
+
+    /**
+     * Resolves the admin-selected template name to a file shipped in the plugin's
+     * templates/ directory, or '' when the plugin ships no file by that name.
+     *
+     * basename() drops any directory component of the stored option value, and
+     * is_file() rejects what basename() lets through ('.', '..', ''), so only a
+     * regular file inside templates/ can be returned.
+     *
+     * @param  string $virtualPageTemplate  Template file name from the OE page-template setting.
+     * @return string
+     */
+    private function locatePluginTemplate( $virtualPageTemplate ) {
+        if ( empty( $virtualPageTemplate ) ) {
+            return '';
+        }
+
+        $pluginTemplate = plugin_dir_path( __FILE__ ) . 'templates/' . basename( $virtualPageTemplate );
+        return is_file( $pluginTemplate ) ? $pluginTemplate : '';
     }
 
     /**
@@ -313,26 +366,6 @@ class iHomefinderVirtualPageDispatcher
         return $parsed_block;
     }
 
-    public function primeVirtualQuery( $query ) {
-        if ( is_admin() || ! $query->is_main_query() ) {
-            return;
-        }
-
-        $type = $query->get( iHomefinderConstants::IHF_TYPE_URL_VAR );
-        if ( empty( $type ) ) {
-            return;
-        }
-
-        // flags only
-        $query->set( 'post_type', 'page' );
-        $query->is_page     = true;
-        $query->is_singular = true;
-        $query->is_home     = false;
-        $query->is_archive  = false;
-        $query->is_search   = false;
-        $query->is_404      = false;
-    }
-
     public function renderVirtualPostContentBlock( $block_content, $block ) {
         $type = get_query_var( iHomefinderConstants::IHF_TYPE_URL_VAR );
         if ( empty( $type ) ) {
@@ -364,83 +397,49 @@ class iHomefinderVirtualPageDispatcher
             return;
         }
 
+        // WordPress has already resolved the real ihf_virtual_page CPT post and
+        // populated $wp_query->post.  We set $GLOBALS['post'] for theme compatibility
+        // and update the title so get_the_title() returns the dynamic value.
         if ( isset( $wp_query->post ) && $wp_query->post instanceof WP_Post ) {
+            if ( ! empty( $this->title ) ) {
+                $wp_query->post->post_title = $this->title;
+                if ( $wp_query->queried_object instanceof WP_Post ) {
+                    $wp_query->queried_object->post_title = $this->title;
+                }
+            }
             $GLOBALS['post'] = $wp_query->post;
-            return;
         }
 
-        if ( ! empty( $wp_query->posts[0] ) && $wp_query->posts[0] instanceof WP_Post ) {
-            $wp_query->post = $wp_query->posts[0];
-            $wp_query->queried_object = $wp_query->post;
-            $wp_query->queried_object_id = (int) $wp_query->post->ID;
-            $GLOBALS['post'] = $wp_query->post;
-        }
+        // Classic theme compatibility: CPT posts are is_singular but not is_page.
+        // Many classic themes gate their singular layout on is_page(), so patch it.
+        $wp_query->is_page = true;
     }
 
-    public function shortCircuitVirtualPosts( $posts, $query ) {
-        if ( is_admin() || ! ( $query instanceof WP_Query ) || ! $query->is_main_query() ) {
-            return $posts;
+    /**
+     * Returns the dynamic virtual-page title (e.g. the listing address) for
+     * any call to the_title() / get_the_title().  Belt-and-suspenders on top
+     * of the post_title mutation in setupVirtualGlobals() — covers SEO plugins
+     * and themes that call get_the_title() before the 'wp' action runs.
+     *
+     * @param  string $title
+     * @param  int    $postId
+     * @return string
+     */
+    public function filterTitle( $title, $postId ) {
+        if ( ! get_query_var( iHomefinderConstants::IHF_TYPE_URL_VAR ) ) {
+            return $title;
         }
 
-        $type = $query->get( iHomefinderConstants::IHF_TYPE_URL_VAR );
-        if ( empty( $type ) ) {
-            return $posts;
+        // Only replace the title for the actual queried IDX post, not for
+        // menu items, widgets, or other posts rendered on the same page.
+        if ( (int) $postId !== (int) get_queried_object_id() ) {
+            return $title;
         }
 
-        // Ensure virtual content is loaded
-        $this->initialize( $query );
+        global $wp_query;
+        $this->initialize( $wp_query );
 
-        if ( ! $this->initialized ) {
-            return $posts;
-        }
-
-        // Build ONE synthetic post
-        $slug = sanitize_title( $this->title ?: 'ihf-virtual-page' );
-
-        $postarr = array(
-            'ID' => 999999999,
-            'post_author' => 0,
-            'post_name' => $slug,
-            'post_type' => 'page',
-            'post_title' => $this->title,
-            'post_content' => $this->content,
-            'post_excerpt' => $this->excerpt,
-            'post_status' => 'publish',
-            'comment_status' => 'closed',
-            'ping_status' => 'closed',
-            'post_parent' => 0,
-            'menu_order' => 0,
-            'post_date' => current_time( 'mysql' ),
-            'post_date_gmt' => current_time( 'mysql', 1 ),
-            'post_modified' => current_time( 'mysql' ),
-            'post_modified_gmt' => current_time( 'mysql', 1 ),
-        );
-
-        $post = new WP_Post( (object) $postarr );
-        $post->filter = 'raw';
-
-        // Normalize flags so themes don’t treat it as archive/search/home
-        $query->is_404        = false;
-        $query->is_home       = false;
-        $query->is_front_page = false;
-        $query->is_posts_page = false;
-        $query->is_archive    = false;
-        $query->is_search     = false;
-        $query->is_single     = false;
-
-        $query->is_page      = true;
-        $query->is_singular  = true;
-
-        // Populate query counts
-        $query->found_posts   = 1;
-        $query->post_count    = 1;
-        $query->max_num_pages = 1;
-
-        // Also set core queried object fields (helps classic themes + shortlink)
-        $query->queried_object    = $post;
-        $query->queried_object_id = (int) $post->ID;
-
-        return array( $post );
+        return ( $this->initialized && ! empty( $this->title ) ) ? $this->title : $title;
     }
 
     private $didInjectFallback = false;
