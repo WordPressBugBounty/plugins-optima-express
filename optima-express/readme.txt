@@ -7,7 +7,7 @@ Requires at least: 5.2
 Tested up to: 7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 9.0.0
+Stable tag: 9.0.1
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -149,6 +149,9 @@ Please report security bugs found in the source code of the Optima Express plugi
 
 
 == Changelog ==
+
+= 9.0.1 =
+* Fixed IDX pages returning "Page not found" on some sites after the upgrade to 9.0.0
 
 = 9.0.0 =
 * Migrated IDX virtual pages to a real WordPress Custom Post Type for improved compatibility with themes, plugins, and caching layers
@@ -701,6 +704,9 @@ Please report security bugs found in the source code of the Optima Express plugi
 
 
 == Upgrade Notice ==
+
+= 9.0.1 =
+Fixes IDX pages returning "Page not found" on some sites after the upgrade to 9.0.0. Affected sites repair themselves on the next page view; no action required.
 
 = 9.0.0 =
 Migrates IDX virtual pages to a real WordPress Custom Post Type, gives each site its own dedicated AI Blog Post service account, fixes a caching issue where sites using caching plugins or host-level caching could display incorrect titles or content on IDX pages, and restores the selected IDX page template. Upgrades automatically — no action required.

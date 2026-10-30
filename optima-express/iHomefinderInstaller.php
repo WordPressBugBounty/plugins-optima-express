@@ -93,7 +93,7 @@ class iHomefinderInstaller
     public function upgrade()
     {
         $currentVersion = get_option(iHomefinderConstants::VERSION_OPTION, null);
-        if ($currentVersion === iHomefinderConstants::VERSION) {
+        if (!$this->isForwardUpgrade($currentVersion)) {
             return;
         }
         $lockToken = $this->admin->acquireProvisionLock();
@@ -108,7 +108,7 @@ class iHomefinderInstaller
             // just released it may have stamped after this request read its cached copy.
             $this->admin->clearProvisionOptionCaches(array(iHomefinderConstants::VERSION_OPTION));
             $currentVersion = get_option(iHomefinderConstants::VERSION_OPTION, null);
-            if ($currentVersion === iHomefinderConstants::VERSION) {
+            if (!$this->isForwardUpgrade($currentVersion)) {
                 return;
             }
             $this->deleteOldOptions();
@@ -116,6 +116,16 @@ class iHomefinderInstaller
             $postType = iHomefinderPostType::getInstance();
             $postType->register();
             $postType->createPosts();
+            // Register the IDX rules before flushing, so this flush is correct on its own
+            // terms. On a front-end request upgrade() runs on setup_theme, earlier than the
+            // init hook that normally calls initialize(), and the post type is registered
+            // with rewrite => false so it contributes none of its own -- a flush taking
+            // effect here would write a rule set with no IDX rules at all. Current WordPress
+            // happens to hide that, because WP_Rewrite::flush_rules() defers anything asked
+            // for before wp_loaded until wp_loaded, by which point init has run. This does
+            // not rely on that: the plugin supports back to WP 5.2. It is idempotent either
+            // way -- add_rewrite_rule() keys on the regex and WP::add_query_var() dedupes.
+            $this->rewriteRules->initialize();
             flush_rewrite_rules();
             // One-time cache flush for the CPT migration. Sites upgrading from pre-CPT
             // versions may have IDX pages cached as static files (W3TC Disk Enhanced,
@@ -164,6 +174,37 @@ class iHomefinderInstaller
             // here. The message can name the service host but never a credential.
             error_log(sprintf('[Optima Express] upgrade provisioning failed for blog %d: %s', get_current_blog_id(), $e->getMessage()));
         }
+    }
+
+    /**
+     * Whether this blog's stored version is older than the running code's.
+     *
+     * upgrade() used to run on any difference, which made it fire in both directions: older
+     * code reaching a blog an upgrade had already moved past would re-run its own one-time
+     * work over the newer version's and stamp the version back down. That is reachable on any
+     * deploy, because old and new code can both be live against the same blog for a while --
+     * across two web nodes until the file sync catches up, and on one node through in-flight
+     * requests, a half-copied plugin directory, or PHP-FPM workers still running OPcache'd
+     * bytecode. Comparing forward only means a release from this one on can never be undone
+     * that way. It cannot protect against 8.x, which is already shipped, so the repair in
+     * iHomefinderAdmin::healRewriteRules() is what covers the blogs 9.0.0 already left
+     * broken (MAX-4695).
+     *
+     * An unstamped blog upgrades: that is a first run, not a downgrade.
+     *
+     * Public because iHomefinderAdmin::healRewriteRulesOnLoad() asks the same question: a
+     * blog with an upgrade pending gets its rules flushed by that upgrade, and should not
+     * also be flushed by the self-heal moments earlier.
+     *
+     * @param mixed $storedVersion the VERSION_OPTION value, or null when it is unset
+     * @return bool
+     */
+    public function isForwardUpgrade($storedVersion)
+    {
+        if (!is_string($storedVersion) || $storedVersion === "") {
+            return true;
+        }
+        return version_compare($storedVersion, iHomefinderConstants::VERSION, "<");
     }
 
     /**

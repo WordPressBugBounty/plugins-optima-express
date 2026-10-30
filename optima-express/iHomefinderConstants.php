@@ -11,7 +11,7 @@ if (! defined('ABSPATH')) {
 interface iHomefinderConstants
 {
 
-    const VERSION = "9.0.0";
+    const VERSION = "9.0.1";
     const VERSION_NAME = "Optima Express";
     const EXTERNAL_URL = "www.idxhome.com/service/wordpress";
     const CONTROL_PANEL_EXTERNAL_URL = "secure.idxre.com/idx/guid";
@@ -453,6 +453,12 @@ interface iHomefinderConstants
     //Remember if this plugin has ever been activated on this site. This affects things like link creation, when the plugin is activated.
     const IS_ACTIVATED_OPTION = "ihf_links_created";
     const CSS_OVERRIDE_MIGRATED = "ihf_css_override_migrated";
+
+    //Records the plugin version that last checked this blog's rewrite rules for the IDX
+    //routes. Re-arms on every release, so a healthy blog pays one option read per release
+    //rather than a rules scan on every request.
+    //See iHomefinderAdmin::healRewriteRulesOnLoad().
+    const REWRITE_HEAL_OPTION = "ihf_rewrite_heal_checked";
 
     //Used throughout the application to discover iHomefinder requests and used to determine the proper filter to execute.
     const IHF_TYPE_URL_VAR = "ihf-type";

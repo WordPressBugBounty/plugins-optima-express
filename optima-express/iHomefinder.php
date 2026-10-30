@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
  * Includes search and listing pages, widgets and shortcodes.
  * Requires an IDX account from iHomefinder.
  * Get a paid account with data from your MLS.
- * Version: 9.0.0
+ * Version: 9.0.1
  * Author: ihomefinder
  * Author URI: http://www.ihomefinder.com
  * License: GPLv2 or later
@@ -59,6 +59,17 @@ register_deactivation_hook(__FILE__, array($installer, "remove"));
 
 //Runs just before the auto upgrader installs the plugin
 add_filter("upgrader_post_install", array($installer, "upgrade"), 10, 2);
+
+// Repairs a blog whose persisted rewrite rules no longer route IDX URLs (MAX-4695).
+// Registered unconditionally: the same check runs from the admin_init tick, but that one
+// wants a signed-in admin and an hourly claim, so a customer site nobody signs into would
+// serve 404s to visitors until someone did. wp_loaded is after the init hook that registers
+// the post type and the current rules, so a flush from there writes a complete rule set.
+// Late priority on purpose: WP_Rewrite::flush_rules() defers any flush requested before
+// wp_loaded to wp_loaded itself, and those deferred callbacks land at priority 10. Running
+// after them means this reads the rules a flush earlier in the request has already written,
+// rather than the pre-request copy, and so does not repeat a flush that is already queued.
+add_action("wp_loaded", array($admin, "healRewriteRulesOnLoad"), 99);
 
 // Deferred blog-provisioning retry, scheduled from front-end requests so the blocking
 // round trip runs in the cron request rather than in front of a visitor's page render.

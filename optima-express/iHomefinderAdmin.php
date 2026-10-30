@@ -2174,29 +2174,116 @@ class iHomefinderAdmin {
 
     /**
      * (5) Rewrite self-heal. A downgrade and re-upgrade, or a plugin that flushed the rules
-     * while ours were not registered, leaves the persisted rules without a single virtual-page
-     * rule and every IDX URL 404s. Our rules are registered on init priority 1 in every
-     * request, so a flush from the tick rebuilds them. Skipped on plain permalinks, where no
-     * rules exist to lose.
+     * while ours were not registered, leaves the persisted rules without a single IDX rule
+     * and every IDX URL 404s. Our rules are registered on init priority 1 in every request,
+     * so a flush rebuilds them. Skipped on plain permalinks, where no rules exist to lose.
+     *
+     * Public so it can also run from wp_loaded through healRewriteRulesOnLoad(). The tick
+     * that calls this is an admin_init hook that additionally wants a signed-in admin and an
+     * hourly claim, and a customer site nobody signs into would otherwise serve 404s to
+     * visitors for as long as that took.
      *
      * @return void
      */
-    private function healRewriteRules()
+    public function healRewriteRules()
     {
         if (empty(get_option('permalink_structure'))) {
             return;
         }
-        $rules = get_option('rewrite_rules');
-        $marker = iHomefinderConstants::IHF_TYPE_URL_VAR . '=';
-        if (is_array($rules)) {
-            foreach ($rules as $redirect) {
-                if (is_string($redirect) && strpos($redirect, $marker) !== false) {
-                    return;
-                }
-            }
+        if (!$this->idxRewriteRulesAreStale()) {
+            return;
         }
         flush_rewrite_rules();
-        error_log(sprintf('[Optima Express] tick: rewrite rules had no virtual-page rule on blog %d; flushed', get_current_blog_id()));
+        error_log(sprintf('[Optima Express] IDX rewrite rules were missing or stale on blog %d; rebuilt', get_current_blog_id()));
+    }
+
+    /**
+     * Whether this blog's persisted rewrite rules have lost the IDX routes.
+     *
+     * The marker is the post type the current rules route to, not the ihf-type query var.
+     * 8.x rules carry ihf-type too (index.php?pagename=non_existent_page&ihf-type=...), so
+     * testing for that read them as healthy -- which is why this check, whose docblock has
+     * always claimed to cover a downgrade and re-upgrade, looked straight past exactly the
+     * blogs MAX-4695 describes: stamped 9.x, still routed 8.x, 404 on every IDX page.
+     *
+     * Testing for the current format being present rather than the old format being absent
+     * also catches a rule set that lost the IDX rules outright instead of having them
+     * replaced, which is the shape a flush leaves when it runs before they are registered.
+     *
+     * An absent or empty rule set is not stale. WordPress reads that as "rebuild on the
+     * next request" and does so itself, and deleting the option is the usual way to ask
+     * for that cheap rebuild instead of paying for a hard flush. Answering "stale" there
+     * would race ahead of it with a hard flush, and would also flush forever on a blog
+     * where no rules can be generated at all.
+     *
+     * @return bool
+     */
+    private function idxRewriteRulesAreStale()
+    {
+        $rules = get_option('rewrite_rules');
+        if (!is_array($rules) || empty($rules)) {
+            return false;
+        }
+        $marker = iHomefinderPostType::POST_TYPE . '=';
+        foreach ($rules as $redirect) {
+            if (is_string($redirect) && strpos($redirect, $marker) !== false) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * wp_loaded entry point for the rewrite self-heal, so a blog repairs itself for visitors
+     * rather than waiting for an administrator to sign in (MAX-4695).
+     *
+     * wp_loaded is after init, where the post type (priority 0) and the current IDX rules
+     * (priority 1) are registered, so a flush from here writes a complete, current rule set.
+     * This cannot live in upgrade() instead: the blogs it repairs are already stamped at the
+     * running version and have spent their upgrade event, which is the whole reason they do
+     * not recover on their own.
+     *
+     * The marker records the version that checked, so a healthy blog pays one option read
+     * and one in-memory scan per release, and every release re-arms the check. The hourly
+     * tick keeps covering a blog that breaks later in the same release.
+     *
+     * The lock is taken only when there is something to repair, and keeps a burst of first
+     * requests after a deploy down to a single flush. A request that loses it leaves the
+     * marker unset, so the next request retries rather than the repair being dropped.
+     *
+     * @return void
+     */
+    public function healRewriteRulesOnLoad()
+    {
+        if (get_option(iHomefinderConstants::REWRITE_HEAL_OPTION, null) === iHomefinderConstants::VERSION) {
+            return;
+        }
+        $installer = iHomefinderInstaller::getInstance();
+        if ($installer->isForwardUpgrade(get_option(iHomefinderConstants::VERSION_OPTION, null))) {
+            // An upgrade is pending for this blog and flushes as part of its own one-time
+            // block, so leave it to that rather than flushing here and again moments later.
+            // On an admin request this hook runs before admin_init, which is where that
+            // upgrade happens. The marker stays unset, so the next request re-checks, by
+            // which point the version is stamped and this takes over again.
+            return;
+        }
+        if (empty(get_option('permalink_structure')) || !$this->idxRewriteRulesAreStale()) {
+            update_option(iHomefinderConstants::REWRITE_HEAL_OPTION, iHomefinderConstants::VERSION);
+            return;
+        }
+        $lockToken = $this->acquireProvisionLock();
+        if ($lockToken === null) {
+            return;
+        }
+        try {
+            // Re-read behind the lock: the holder that just released it may have flushed
+            // already, and this request's copy of the option predates that.
+            $this->clearProvisionOptionCaches(array('rewrite_rules'));
+            $this->healRewriteRules();
+            update_option(iHomefinderConstants::REWRITE_HEAL_OPTION, iHomefinderConstants::VERSION);
+        } finally {
+            $this->releaseProvisionLock($lockToken);
+        }
     }
 
     /**
