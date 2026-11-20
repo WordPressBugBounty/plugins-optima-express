@@ -363,6 +363,36 @@ class iHomefinderRequestor
     }
 
     /**
+     * The Control Panel sign-in page the "IDX Control Panel" admin page links to. Production
+     * unless IHF_SERVICE_HOST is defined on a non-production environment, which is the same
+     * condition under which getServiceUrl() points at a test host (MAX-4708, D23).
+     *
+     * @return string
+     */
+    public static function getControlPanelLoginUrl()
+    {
+        if (defined("IHF_SERVICE_HOST") && is_string(IHF_SERVICE_HOST) && IHF_SERVICE_HOST !== "") {
+            $environment = function_exists("wp_get_environment_type") ? wp_get_environment_type() : "production";
+            if ($environment !== "production") {
+                return iHomefinderConstants::CONTROL_PANEL_LOGIN_URL_TEST;
+            }
+        }
+        return iHomefinderConstants::CONTROL_PANEL_LOGIN_URL;
+    }
+
+    /**
+     * The Control Panel sign-in endpoint the WordPress admin POSTs the registration key to, as
+     * the form field w. Same host as getControlPanelLoginUrl(); the URL never carries the key
+     * (MAX-4708, D53).
+     *
+     * @return string
+     */
+    public static function getControlPanelAutoLoginUrl()
+    {
+        return self::getControlPanelLoginUrl() . iHomefinderConstants::CONTROL_PANEL_AUTOLOGIN_PATH;
+    }
+
+    /**
      * The one place the plugin's service endpoint is spelled out. Always https: the request
      * carries the activation key, the authentication token and, on the provisioning path, a
      * freshly minted application password, so the scheme is never taken from is_ssl() (an http

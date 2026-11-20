@@ -244,7 +244,7 @@ class iHomefinderInstaller
      *
      * @return void
      */
-    private function flushPageCache()
+    public function flushPageCache()
     {
         // W3 Total Cache
         do_action('w3tc_flush_all');

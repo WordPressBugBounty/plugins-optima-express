@@ -19,13 +19,18 @@ abstract class iHomefinderAdminAbstractPage implements iHomefinderAdminPageInter
         if (!current_user_can("manage_options")) {
             wp_die("You do not have sufficient displayRules to access this page.");
         }
+        $activateOutcome = null;
         if ($this->isUpdated()) {
-            $this->admin->activateAuthenticationToken();
+            $activateOutcome = $this->admin->activateAuthenticationToken();
         }
         $this->getHeadContent();
         ?>
         <div id="ihf-main-container" class="wrap">
         <?php
+        if ($activateOutcome === iHomefinderAdmin::ACTIVATE_EXPOSED) {
+            //a settings save re-registers; show the user why changes are not reaching their account
+            $this->admin->renderExposedNotice();
+        }
         $this->getContent();
         ?>
         </div>

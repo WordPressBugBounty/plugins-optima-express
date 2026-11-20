@@ -7,7 +7,7 @@ Requires at least: 5.2
 Tested up to: 7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 9.0.1
+Stable tag: 9.0.2
 Embed real estate property listings, market reports & MLS data on your WordPress site. Responsive design, great SEO & proven lead capture.
 
 
@@ -149,6 +149,11 @@ Please report security bugs found in the source code of the Optima Express plugi
 
 
 == Changelog ==
+
+= 9.0.2 =
+* Security: the registration key is no longer included in your site's page source. After updating, generate a new registration key in your IDX Control Panel and enter it on the Register page of this plugin
+* The IDX Control Panel menu item now opens the Control Panel without putting the registration key in the address bar or browser history
+* Shows a clear message on the Register page when a registration key can no longer be used
 
 = 9.0.1 =
 * Fixed IDX pages returning "Page not found" on some sites after the upgrade to 9.0.0
@@ -704,6 +709,9 @@ Please report security bugs found in the source code of the Optima Express plugi
 
 
 == Upgrade Notice ==
+
+= 9.0.2 =
+Security update: the registration key is no longer published in your site's page source. Update, then generate a new registration key in your IDX Control Panel and enter it on the Register page.
 
 = 9.0.1 =
 Fixes IDX pages returning "Page not found" on some sites after the upgrade to 9.0.0. Affected sites repair themselves on the next page view; no action required.

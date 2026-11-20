@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
  * Includes search and listing pages, widgets and shortcodes.
  * Requires an IDX account from iHomefinder.
  * Get a paid account with data from your MLS.
- * Version: 9.0.1
+ * Version: 9.0.2
  * Author: ihomefinder
  * Author URI: http://www.ihomefinder.com
  * License: GPLv2 or later
@@ -207,6 +207,7 @@ if (is_admin()) {
     add_action("admin_init", array($shortcodeSelector, "addButtons"));
     //add error check
     add_action("admin_notices", array($admin, "checkError"));
+    add_action("admin_notices", array($admin, "showExposedAdminNotice"));
 } else {
     /*
     // Call upgrade method on every non-admin page load.

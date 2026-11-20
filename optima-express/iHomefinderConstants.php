@@ -11,10 +11,14 @@ if (! defined('ABSPATH')) {
 interface iHomefinderConstants
 {
 
-    const VERSION = "9.0.1";
+    const VERSION = "9.0.2";
     const VERSION_NAME = "Optima Express";
     const EXTERNAL_URL = "www.idxhome.com/service/wordpress";
-    const CONTROL_PANEL_EXTERNAL_URL = "secure.idxre.com/idx/guid";
+    //Control Panel sign-in pages (MAX-4708, D23); the test host is used only in a non-production environment
+    const CONTROL_PANEL_LOGIN_URL = "https://secure.idxre.com";
+    const CONTROL_PANEL_LOGIN_URL_TEST = "https://test-cf.idxhome.com";
+    //Control Panel sign-in from the WordPress admin: the registration key is POSTed as w, never put in a URL (MAX-4708, D53)
+    const CONTROL_PANEL_AUTOLOGIN_PATH = "/idx/guid/z.cfm";
     const IHOMEFINDER_STORE_EXTERNAL_URL = "https://www.ihomefinder.com/account";
     const KESTREL_URL = "https://kestrel.idxhome.com";
     const KESTREL_DEVELOPMENT = false;
@@ -46,6 +50,10 @@ interface iHomefinderConstants
     const BLOG_APP_PASSWORD_UUID_OPTION = "ihf_blog_app_password_uuid";
     //set when blog provisioning still owes a successful run, cleared once one completes
     const BLOG_PROVISION_PENDING_OPTION = "ihf_blog_provision_pending";
+    //set when ihf-root refused the registration key (401 on provision, 401/403 on activate); no retry until a key activates
+    const BLOG_PROVISION_REFUSED_OPTION = "ihf_blog_provision_refused";
+    //set when activate answered 403 for the stored key; drives the persistent admin notice until a key activates or the site unregisters
+    const BLOG_EXPOSED_NOTICE_OPTION = "ihf_blog_exposed_notice";
     // Last blog-provisioning failure (message + timestamp), so a stuck site is diagnosable from
     // wp-admin or a REST read instead of only from the server's error log. Cleared on confirm.
     const BLOG_PROVISION_LAST_ERROR_OPTION = "ihf_blog_provision_last_error";

@@ -87,6 +87,9 @@ class iHomefinderAdminActivate extends iHomefinderAdminAbstractPage
                         <button type="submit" class="button-primary" onclick="return confirm('Are you sure you want to unregister Optima Express?');">Unregister</button>
                     </p>
                 </form>
+                <h2>Replace Registration Key</h2>
+                <p>To use a new registration key, paste it here and click "Register". Your current registration is unchanged unless the new key is accepted.</p>
+                <?php $this->showRegisterKeyForm(""); ?>
                 <h2>Refresh Registration</h2>
                 <p>Checks your registration key with the service and updates this site's registration. If the check fails, your current registration is left unchanged.</p>
                 <form method="post" action="<?php echo esc_url(admin_url("admin-post.php")); ?>">
@@ -98,7 +101,11 @@ class iHomefinderAdminActivate extends iHomefinderAdminAbstractPage
                 </form>
                 <h2>Blog Connection</h2>
                 <p>Optima Express publishes blog posts to this site through its own service user. If blog posting has stopped working, reset the connection to issue a new credential.</p>
-                <?php if (iHomefinderUtility::getInstance()->getRequestVar("ihf_reset") === "1") { ?>
+                <?php if (iHomefinderUtility::getInstance()->getRequestVar("ihf_reset") === "refused") { ?>
+                    <div class="error">
+                        <p>The blog connection was not reset because your registration key was refused. Paste a new key from the Control Panel under Replace Registration Key, then try again.</p>
+                    </div>
+                <?php } elseif (iHomefinderUtility::getInstance()->getRequestVar("ihf_reset") === "1") { ?>
                     <div class="updated">
                         <p>The blog connection is being reset. A new credential will be issued shortly.</p>
                     </div>
@@ -173,6 +180,9 @@ class iHomefinderAdminActivate extends iHomefinderAdminAbstractPage
                 $class = "error";
                 $message = "That registration key was not recognized. Your existing registration is unchanged.";
                 break;
+            case iHomefinderAdmin::ACTIVATE_EXPOSED:
+                $this->admin->renderExposedNotice();
+                return;
             case iHomefinderAdmin::ACTIVATE_UNREACHABLE:
                 $class = "error";
                 $message = "Could not reach the registration service" . ($detail !== "" ? " (" . $detail . ")" : "") . ". Your existing registration is unchanged. Please try again in a few minutes.";

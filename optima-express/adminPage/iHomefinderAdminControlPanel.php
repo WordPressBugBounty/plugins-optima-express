@@ -18,15 +18,12 @@ class iHomefinderAdminControlPanel extends iHomefinderAdminAbstractPage
     
     protected function getContent()
     {
-        if ($this->admin->isActivated()) {
-            $url = "https://" . iHomefinderConstants::CONTROL_PANEL_EXTERNAL_URL . "/z.cfm?w=" . get_option(iHomefinderConstants::ACTIVATION_TOKEN_OPTION, null);
-            ?>
-            <h2>Your IDX Control Panel will open in a new window.</h2>
-            <p>If a new window does not open, please enable pop-ups for this site or <a href="<?php echo esc_url($url) ?>" target="_blank">click here</a>.</p>
-            <script type="text/javascript">
-                window.open("<?php echo esc_url($url) ?>");
-            </script>
-            <?php
-        }
+        // POSTs the stored registration key to the Control Panel sign-in endpoint (never in a URL),
+        // or links to the sign-in page when no usable key is stored (MAX-4708, D53).
+        ?>
+        <h2>IDX Control Panel</h2>
+        <p>Open your IDX Control Panel to manage your account, leads and settings.</p>
+        <?php $this->admin->renderControlPanelLink("Open the IDX Control Panel", "button button-primary"); ?>
+        <?php
     }
 }

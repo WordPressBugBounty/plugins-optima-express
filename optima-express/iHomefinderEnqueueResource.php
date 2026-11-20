@@ -36,7 +36,13 @@ class iHomefinderEnqueueResource
             $admin = iHomefinderAdmin::getInstance();
             $stateManager = iHomefinderStateManager::getInstance();
             $config = [];
-            $config["activationToken"] =  $admin->getActivationToken();
+            // Only the public authentication token is published. The registration (activation)
+            // key is a secret and never reaches page output (MAX-4708). It is empty until the
+            // first successful registration, in which case the key is omitted.
+            $authenticationToken = $admin->getAuthenticationToken();
+            if (is_scalar($authenticationToken) && trim((string) $authenticationToken) !== "") {
+                $config["authenticationToken"] = (string) $authenticationToken;
+            }
             $config["platform"] = "wordpress";
             if ($this->displayRules->isKestrelDetail()) {
                 $config["sessionId"] = $stateManager->getSessionId();

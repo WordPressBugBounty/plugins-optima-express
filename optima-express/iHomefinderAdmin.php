@@ -46,12 +46,14 @@ class iHomefinderAdmin {
     // Route under get_rest_url() that ihf-root posts to; the REST base sent with the credential.
     const BLOG_POST_REST_PATH = "optima-express/v1/blog-post/";
 
-    // Outcomes of activateAuthenticationToken(). "rejected" is a 401 or 403 only; any other
-    // failure (WP_Error, 5xx, a WAF page, a 200 without a token) is "unreachable".
+    // Outcomes of activateAuthenticationToken(). "rejected" is a 401 only and "exposed" a 403;
+    // any other failure (WP_Error, 5xx, a WAF page, a 200 without a token) is "unreachable".
     const ACTIVATE_ACTIVATED = "activated";
     const ACTIVATE_REJECTED = "rejected";
     const ACTIVATE_UNREACHABLE = "unreachable";
     const ACTIVATE_NO_KEY = "no-key";
+    // HTTP 403: the service refuses a registration key that can no longer be used (MAX-4708).
+    const ACTIVATE_EXPOSED = "exposed";
 
     // admin-post action name and nonce action of the Reset Blog Connection button.
     const RESET_BLOG_CONNECTION_ACTION = "ihf_reset_blog_connection";
@@ -107,6 +109,10 @@ class iHomefinderAdmin {
     // Fixed-vocabulary detail of the last activateAuthenticationToken() failure (see
     // iHomefinderRemoteResponse::getFailureDetail()); '' after a success or before any call.
     private $lastActivateDetail = '';
+    /** True while the signed ping holds the provisioning lock: activate defers its page cache flush. */
+    private $deferPageCacheFlush = false;
+    /** Set by a deferred activate; the ping flushes after releasing the lock. */
+    private $pageCacheFlushOwed = false;
 
     private function __construct()
     {
@@ -461,17 +467,20 @@ class iHomefinderAdmin {
      * provisionBlogIntegration() does the work from the next admin request or the retry event.
      *
      * A candidate key is passed through to the request and written to ACTIVATION_TOKEN_OPTION
-     * only when the outcome is ACTIVATE_ACTIVATED: a rejected or unreachable attempt leaves the
-     * previous key and the previous token in place, so the site stays connected under the
-     * previous key and the front-end config never carries an unvalidated one (MAX-4432).
+     * only when the outcome is ACTIVATE_ACTIVATED: a rejected (401), exposed (403) or otherwise
+     * failed attempt leaves the previous key and the previous token in place, so the site stays
+     * connected under the previous key and the front-end config never carries an unvalidated
+     * one (MAX-4432).
      *
      * Called from every settings-page save, the three Register page actions, wp_initialize_site,
      * and the signed cache-clear ping (under the provisioning lock, see
      * handleSignedCacheClearPing()). getLastActivateDetail() describes a failure afterwards.
      *
      * @param string|null $activationToken a candidate key to try; the stored key is used when empty
-     * @return string ACTIVATE_ACTIVATED (a token came back), ACTIVATE_REJECTED (HTTP 401 or 403),
-     *                ACTIVATE_UNREACHABLE (WP_Error or any other failure), ACTIVATE_NO_KEY
+     * @return string ACTIVATE_ACTIVATED (a token came back), ACTIVATE_REJECTED (HTTP 401),
+     *                ACTIVATE_EXPOSED (HTTP 403: the key can no longer be used, or a firewall
+     *                blocked the request), ACTIVATE_UNREACHABLE (WP_Error or any other
+     *                failure), ACTIVATE_NO_KEY
      */
     public function activateAuthenticationToken($activationToken = null)
     {
@@ -504,23 +513,56 @@ class iHomefinderAdmin {
                 iHomefinderDisplayRules::getInstance()->setPermissions($permissions);
             }
             update_option(iHomefinderConstants::IS_ACTIVATED_OPTION, "true");
+            // The key works again (or a new one was saved): provisioning is allowed to run.
+            delete_option(iHomefinderConstants::BLOG_PROVISION_REFUSED_OPTION);
+            delete_option(iHomefinderConstants::BLOG_EXPOSED_NOTICE_OPTION);
             //We need to flush the rewrite rules, if any permalinks have been updated.
             //Only flush in the admin screens, because that is the only point where urls patterns may change.
             iHomefinderRewriteRules::getInstance()->flushRules();
             //clear the cache
             iHomefinderCacheUtility::getInstance()->deleteItems();
+            //cached pages still carry the previous authentication token; a purge failure never fails the activation
+            if ($this->deferPageCacheFlush) {
+                //the signed ping holds the provisioning lock here; it flushes once the lock is released
+                $this->pageCacheFlushOwed = true;
+            } else {
+                $this->flushPageCacheSafely();
+            }
             //update menu with any new available menu items
             iHomefinderMenu::getInstance()->updateMenu();
             return self::ACTIVATE_ACTIVATED;
         }
-        // ihf-root answers 401 only when no ClientAuthentication row matches the key, so 401
-        // and 403 are the only statuses that mean "bad key"; everything else is an outage.
+        // ihf-root answers 401 when no ClientAuthentication row matches the key and 403 when the
+        // key matches but can no longer be used; everything else is an outage. On either, the
+        // previous key and token stay in place (nothing above has run).
         $status = $remoteResponse->getHttpStatusCode();
         $this->lastActivateDetail = $remoteResponse->getFailureDetail();
-        if ($status === 401 || $status === 403) {
-            return self::ACTIVATE_REJECTED;
+        if ($status === 403 || $status === 401) {
+            // Only a refusal of the stored key stops provisioning; a refused candidate says
+            // nothing about the key the site already holds.
+            if ($candidate === '' || $candidate === $storedKey) {
+                $this->markProvisioningRefused();
+                // Remembered so the admin is reminded on the plugin's screens until a key works.
+                // A 401 is a key retired by a Control Panel regenerate, which the admin must see too.
+                update_option(iHomefinderConstants::BLOG_EXPOSED_NOTICE_OPTION, '1');
+            }
+            return $status === 403 ? self::ACTIVATE_EXPOSED : self::ACTIVATE_REJECTED;
         }
         return self::ACTIVATE_UNREACHABLE;
+    }
+
+    /**
+     * Purges page caches after a successful activation. A purge failure is logged, never thrown.
+     *
+     * @return void
+     */
+    private function flushPageCacheSafely()
+    {
+        try {
+            iHomefinderInstaller::getInstance()->flushPageCache();
+        } catch (Throwable $e) {
+            error_log('[Optima Express] page cache flush after activation failed: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -558,6 +600,7 @@ class iHomefinderAdmin {
         $this->deleteAuthenticationToken();
         delete_option(iHomefinderConstants::ACTIVATION_TOKEN_OPTION);
         delete_option(iHomefinderConstants::IS_ACTIVATED_OPTION);
+        delete_option(iHomefinderConstants::BLOG_EXPOSED_NOTICE_OPTION);
         error_log(sprintf('[Optima Express] unregistered blog %d', $blogId));
     }
 
@@ -639,6 +682,128 @@ class iHomefinderAdmin {
             'outcome' => (string) $result['outcome'],
             'detail' => isset($result['detail']) && is_scalar($result['detail']) ? (string) $result['detail'] : '',
         );
+    }
+
+    /**
+     * The admin message for ACTIVATE_EXPOSED. Neutral wording, because a firewall can also
+     * answer 403. No iHomefinder branding: it is customer-visible text.
+     *
+     * @return string
+     */
+    public function getExposedMessage()
+    {
+        return "Your IDX registration key can no longer be used. Your listings still display, but changes you make here are not reaching your IDX account. To fix this, generate a new key in the Control Panel and paste it on the Register page. This takes about two minutes. If a new key is also refused, a firewall or security plugin on this site may be blocking the request, so ask your host to allow it.";
+    }
+
+    /**
+     * Prints the ACTIVATE_EXPOSED notice with a link to the Control Panel, where the new key is
+     * generated.
+     *
+     * @return void
+     */
+    public function renderExposedNotice()
+    {
+        ?>
+        <div class="error">
+            <p><?php echo esc_html($this->getExposedMessage()); ?></p>
+            <?php $this->renderControlPanelLink("Open the IDX Control Panel to generate a new key", "button-link"); ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Prints the way into the Control Panel from a WordPress admin screen (MAX-4708, D53).
+     *
+     * When a usable registration key is stored, a form that POSTs it as the hidden field w to
+     * the Control Panel sign-in endpoint in a new tab, so the key never appears in a URL, the
+     * browser history or a Referer header; the service signs in with a clean key and shows a
+     * static page otherwise. The key is written only into the hidden input's value. Everywhere
+     * else, a plain link to the sign-in page: outside the admin, for users who cannot
+     * manage_options, with no key stored, and while the stored key is known to be refused
+     * (posting it would only reach the static page).
+     *
+     * Prints its own block wrapper (a form cannot sit inside a p), so callers must not place it
+     * inside a p or another form.
+     *
+     * @param string $label the button or link text
+     * @param string $buttonClass CSS class for the submit button, e.g. "button button-primary" or "button-link"
+     * @return void
+     */
+    public function renderControlPanelLink($label, $buttonClass)
+    {
+        $key = null;
+        if (is_admin() && current_user_can('manage_options')
+            && empty(get_option(iHomefinderConstants::BLOG_EXPOSED_NOTICE_OPTION, null))
+            && !$this->provisioningRefused()) {
+            $stored = get_option(iHomefinderConstants::ACTIVATION_TOKEN_OPTION, null);
+            if (is_string($stored) && trim($stored) !== '') {
+                $key = trim($stored);
+            }
+        }
+        if ($key === null) {
+            ?>
+            <p><a href="<?php echo esc_url(iHomefinderRequestor::getControlPanelLoginUrl()); ?>" class="<?php echo esc_attr($buttonClass); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($label); ?></a></p>
+            <?php
+            return;
+        }
+        ?>
+        <form method="post" action="<?php echo esc_url(iHomefinderRequestor::getControlPanelAutoLoginUrl()); ?>" target="_blank" rel="noopener noreferrer" style="margin: 0.5em 0;">
+            <input type="hidden" name="w" value="<?php echo esc_attr($key); ?>" />
+            <button type="submit" class="<?php echo esc_attr($buttonClass); ?>" formtarget="_blank"><?php echo esc_html($label); ?></button>
+        </form>
+        <?php
+    }
+
+    /**
+     * admin_notices handler: while the exposed-key flag is set, a non-dismissible warning on the
+     * Optima Express screens of the current site, for users who can manage_options. Not hooked on
+     * network_admin_notices, so the network admin never shows it. Skipped where the one-shot
+     * exposed notice renders in the same request: a settings save (the page re-runs activate and
+     * prints it) and the Register page right after an action that stored an exposed outcome.
+     *
+     * @return void
+     */
+    public function showExposedAdminNotice()
+    {
+        // Also shown when only provisioning was refused: after an auto-update, an exposed key is
+        // refused by provision-blog-integration long before any admin re-runs activate.
+        if (!current_user_can('manage_options')
+            || (empty(get_option(iHomefinderConstants::BLOG_EXPOSED_NOTICE_OPTION, null)) && !$this->provisioningRefused())) {
+            return;
+        }
+        $pageName = $this->utility->getRequestVar("page");
+        $pluginPages = array(
+            iHomefinderConstants::PAGE_INFORMATION,
+            iHomefinderConstants::PAGE_SHORTCODES,
+            iHomefinderConstants::PAGE_ACTIVATE,
+            iHomefinderConstants::PAGE_IDX_CONTROL_PANEL,
+            iHomefinderConstants::PAGE_IDX_PAGES,
+            iHomefinderConstants::PAGE_CONFIGURATION,
+            iHomefinderConstants::PAGE_BIO,
+            iHomefinderConstants::PAGE_SOCIAL,
+            iHomefinderConstants::PAGE_EMAIL_BRANDING,
+            iHomefinderConstants::PAGE_COMMUNITY_PAGES,
+            iHomefinderConstants::PAGE_SEO_CITY_LINKS
+        );
+        if (!is_string($pageName) || !in_array($pageName, $pluginPages, true)) {
+            return;
+        }
+        if ($this->utility->getRequestVar("settings-updated") === "true") {
+            return;
+        }
+        if ($pageName === iHomefinderConstants::PAGE_ACTIVATE) {
+            $pending = get_transient(self::ACTIVATE_RESULT_TRANSIENT . get_current_user_id());
+            if (is_array($pending) && isset($pending['outcome']) && $pending['outcome'] === self::ACTIVATE_EXPOSED) {
+                return;
+            }
+        }
+        ?>
+        <div class="notice notice-warning">
+            <p><?php echo esc_html($this->getExposedMessage()); ?></p>
+            <p><a href="<?php echo esc_url(admin_url('admin.php?page=' . iHomefinderConstants::PAGE_ACTIVATE)); ?>">Open the Register page</a></p>
+            <?php $this->renderControlPanelLink("Open the IDX Control Panel to generate a new key", "button-link"); ?>
+        </div>
+        <?php
     }
 
     private function storeActivateResult($outcome, $detail)
@@ -928,6 +1093,28 @@ class iHomefinderAdmin {
     }
     
     /**
+     * ihf-root refused this blog's key, so every provisioning attempt would be refused too.
+     * Stops the retry loop: sets the refused flag, drops the pending marker and the queued
+     * retry event. A successful activate clears the flag; genuine outages never set it.
+     *
+     * @return void
+     */
+    private function markProvisioningRefused()
+    {
+        update_option(iHomefinderConstants::BLOG_PROVISION_REFUSED_OPTION, '1');
+        delete_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION);
+        wp_clear_scheduled_hook(iHomefinderConstants::BLOG_PROVISION_RETRY_CRON_HOOK);
+    }
+
+    /**
+     * @return bool true while ihf-root's last answer to this blog's key was a refusal
+     */
+    private function provisioningRefused()
+    {
+        return !empty(get_option(iHomefinderConstants::BLOG_PROVISION_REFUSED_OPTION, null));
+    }
+
+    /**
      * Provisions this blog's per-site credential and delivers it to ihf-root: resolve the
      * service user, mint one application password, POST provision-blog-integration, confirm.
      * The only function that mints or ships a blog credential; the whole round trip runs under
@@ -959,6 +1146,11 @@ class iHomefinderAdmin {
             $this->recordBlogProvisionError('site is deleted, archived or spam', self::STAGE_SITE_RETIRED);
             delete_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION);
             error_log(sprintf('[Optima Express] provisionBlogIntegration skipped for blog %d: site retired', $blogId));
+            return;
+        }
+        // (b2) ihf-root refused the key: nothing minted, nothing marked pending.
+        if ($this->provisioningRefused()) {
+            error_log(sprintf('[Optima Express] provisionBlogIntegration skipped for blog %d: registration key refused', $blogId));
             return;
         }
         $authenticationToken = get_option(iHomefinderConstants::AUTHENTICATION_TOKEN_OPTION);
@@ -1022,6 +1214,17 @@ class iHomefinderAdmin {
                     'wpRestBase'     => $blogCredentials['restBase'],
                 ),
             ));
+            // (g0) 401: ihf-root does not know the key. The password just minted was never
+            // accepted, so remove it, stop the retry loop and wait for a key that activates.
+            if (!is_wp_error($response) && (int) wp_remote_retrieve_response_code($response) === 401) {
+                if (class_exists("WP_Application_Passwords")) {
+                    WP_Application_Passwords::delete_application_password((int) $blogCredentials['userId'], $blogCredentials['uuid']);
+                }
+                $this->recordBlogProvisionError('provision-blog-integration refused: HTTP 401', self::STAGE_PROVISION_POST);
+                $this->markProvisioningRefused();
+                error_log(sprintf('[Optima Express] provision-blog-integration refused (401) for blog %d; retries stopped until a key activates', $blogId));
+                return;
+            }
             // (g) Anything but a 200 leaves both credentials alone: the previously confirmed
             // one still works, and the unconfirmed one is removed by the next confirm.
             if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
@@ -1137,6 +1340,13 @@ class iHomefinderAdmin {
             exit;
         }
         $blogId = get_current_blog_id();
+        if ($this->provisioningRefused()) {
+            // Provisioning refuses to run while the key is refused, so a reset would only leave a
+            // stale marker and a queued event. Nothing is written; the page asks for a new key.
+            error_log(sprintf('[Optima Express] reset blog connection for blog %d not started: registration key refused', $blogId));
+            wp_safe_redirect(add_query_arg('ihf_reset', 'refused', $redirect));
+            exit;
+        }
         update_option(iHomefinderConstants::BLOG_FORCE_ROTATE_OPTION, '1');
         update_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION, '1');
         update_option(iHomefinderConstants::BLOG_REST_BASE_TARGET_OPTION, $this->restBaseFromThisRequest(), false);
@@ -1206,12 +1416,23 @@ class iHomefinderAdmin {
             error_log(sprintf('[Optima Express] ping-reactivate for blog %d skipped: provisioning lock held', $blogId));
             return false;
         }
+        // Cache plugins may purge over slow HTTP, so the page cache flush waits until the lock is released.
+        $this->deferPageCacheFlush = true;
+        $this->pageCacheFlushOwed = false;
+        $flushOwed = false;
         try {
             // The throttle is set only once the lock is ours, immediately before the activate.
             set_transient($throttleKey, 1, self::SIGNED_REACTIVATE_INTERVAL);
             $outcome = $this->activateAuthenticationToken();
         } finally {
+            // Reset the flags first so a throwing release cannot leave them set.
+            $this->deferPageCacheFlush = false;
+            $flushOwed = $this->pageCacheFlushOwed;
+            $this->pageCacheFlushOwed = false;
             $this->releaseProvisionLock($lockToken);
+        }
+        if ($flushOwed) {
+            $this->flushPageCacheSafely();
         }
         error_log(sprintf('[Optima Express] ping-reactivate for blog %d: %s', $blogId, $outcome));
         return $outcome === self::ACTIVATE_ACTIVATED;
@@ -1634,6 +1855,8 @@ class iHomefinderAdmin {
             iHomefinderConstants::BLOG_USER_ID_OPTION,
             iHomefinderConstants::BLOG_PROVISION_SQUATTED_OPTION,
             iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION,
+            iHomefinderConstants::BLOG_PROVISION_REFUSED_OPTION,
+            iHomefinderConstants::BLOG_EXPOSED_NOTICE_OPTION,
             iHomefinderConstants::BLOG_PROVISION_LAST_ERROR_OPTION,
             iHomefinderConstants::BLOG_RESYNC_PENDING_OPTION,
             iHomefinderConstants::BLOG_SERVICE_PASSWORD_UUID_OPTION,
@@ -1728,6 +1951,9 @@ class iHomefinderAdmin {
         }
         if ($this->blogIsRetired()) {
             // A deleted, archived or spam sub-site owes nothing; the scheduler must not queue it.
+            return false;
+        }
+        if ($this->provisioningRefused()) {
             return false;
         }
         if (!empty(get_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION, null))) {
@@ -1846,6 +2072,10 @@ class iHomefinderAdmin {
         }
         if ($this->migrationHaltedFor(get_current_blog_id())) {
             // A halted blog is neither marked pending nor provisioned.
+            return false;
+        }
+        if ($this->provisioningRefused()) {
+            // Also keeps the "no confirmed uuid" rule below from re-marking it pending.
             return false;
         }
         $pending = get_option(iHomefinderConstants::BLOG_PROVISION_PENDING_OPTION, null);
