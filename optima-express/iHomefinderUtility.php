@@ -76,7 +76,8 @@ class iHomefinderUtility
                 if (substr($url, -1) !== "?" && substr($url, -1) !== "&") {
                     $url .= "&";
                 }
-                $url .= $key . "=" . urlencode(trim($value));
+                // Parameter names come from visitor requests too, so encode them like the values.
+                $url .= rawurlencode((string) $key) . "=" . urlencode(trim($value));
             }
         }
         return $url;

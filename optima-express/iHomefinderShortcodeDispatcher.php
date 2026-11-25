@@ -890,6 +890,9 @@ class iHomefinderShortcodeDispatcher
         $result .= $slug;
         if (is_array($attributes)) {
             foreach ($attributes as $name => $value) {
+                // Strip the characters that could end the attribute, the shortcode or open a tag. Not esc_attr():
+                // WordPress never entity-decodes shortcode attributes, so a name like Coeur d'Alene would break.
+                $value = str_replace(array("\"", "[", "]", "<", ">", "\\"), "", (string) $value);
                 $result .= " " . $name . "=\"" . $value . "\"";
             }
         }

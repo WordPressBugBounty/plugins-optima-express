@@ -18,14 +18,17 @@ class iHomefinderAdminCommunityPages extends iHomefinderAdminAbstractPage
     
     protected function getContent()
     {
-        if ($this->isUpdated()) {
-            $title = iHomefinderUtility::getInstance()->getRequestVar("title");
-            $cityZip = iHomefinderUtility::getInstance()->getRequestVar("cityZip");
-            $propertyType = iHomefinderUtility::getInstance()->getRequestVar("propertyType");
-            $bed = iHomefinderUtility::getInstance()->getRequestVar("bed");
-            $bath = iHomefinderUtility::getInstance()->getRequestVar("bath");
-            $minPrice = iHomefinderUtility::getInstance()->getRequestVar("minPrice");
-            $maxPrice = iHomefinderUtility::getInstance()->getRequestVar("maxPrice");
+        // Only the real form creates a page: a POST carrying the nonce that settings_fields() prints.
+        // A GET, or a POST without a valid nonce, never creates a page (CSRF).
+        if ($this->isUpdated() && isset($_SERVER["REQUEST_METHOD"]) && $_SERVER["REQUEST_METHOD"] === "POST") {
+            check_admin_referer(iHomefinderConstants::OPTION_GROUP_COMMUNITY_PAGES . "-options");
+            $title = $this->getPostValue("title");
+            $cityZip = $this->getPostValue("cityZip");
+            $propertyType = $this->getPostValue("propertyType");
+            $bed = $this->getPostValue("bed");
+            $bath = $this->getPostValue("bath");
+            $minPrice = $this->getPostValue("minPrice");
+            $maxPrice = $this->getPostValue("maxPrice");
             $this->updateCommunityPages($title, $cityZip, $propertyType, $bed, $bath, $minPrice, $maxPrice);
         }
         ?>
@@ -123,6 +126,19 @@ class iHomefinderAdminCommunityPages extends iHomefinderAdminAbstractPage
         <?php
     }
     
+    /**
+     * A form value from $_POST only, left slashed as WordPress delivers it, because
+     * wp_insert_post() unslashes the post it is given.
+     */
+    private function getPostValue($name)
+    {
+        $result = null;
+        if (isset($_POST[$name]) && is_scalar($_POST[$name])) {
+            $result = (string) $_POST[$name];
+        }
+        return $result;
+    }
+
     private function updateCommunityPages($title, $cityZip, $propertyType, $bed, $bath, $minPrice, $maxPrice)
     {
         $shortCode = iHomefinderShortcodeDispatcher::getInstance()->buildSearchResultsShortCode($cityZip, $propertyType, $bed, $bath, $minPrice, $maxPrice);

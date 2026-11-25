@@ -149,9 +149,21 @@ class iHomefinderStateManager
     
     public function setSubscriberId($value)
     {
-        if(!empty($value)) {
-            $this->setCookie(self::SUBSCRIBER_ID, $value);
+        if(self::isValidSubscriberId($value)) {
+            $this->setCookie(self::SUBSCRIBER_ID, (string) $value);
         }
+    }
+
+    /**
+     * A subscriber id is the iHomefinder subscriber's numeric id. Anything else is rejected,
+     * not coerced, because the request value is visitor-controlled.
+     */
+    public static function isValidSubscriberId($value)
+    {
+        if(is_int($value)) {
+            return $value > 0;
+        }
+        return is_string($value) && preg_match('/^[1-9][0-9]{0,18}$/', $value) === 1;
     }
     
     public function hasSubscriberId()
@@ -230,13 +242,15 @@ class iHomefinderStateManager
     
     public function getCurrentUrl()
     {
-        $scheme = "http";
-        if(is_ssl()) {
-            $scheme = "https";
+        //The origin comes from the site's own home URL, never the visitor-supplied Host header.
+        //REQUEST_URI already includes any subdirectory, so only the scheme, host and port are taken.
+        $home = wp_parse_url(home_url());
+        $origin = $home["scheme"] . "://" . $home["host"];
+        if(!empty($home["port"])) {
+            $origin .= ":" . $home["port"];
         }
-        $host = $_SERVER["HTTP_HOST"];
-        $requestUri = $_SERVER["REQUEST_URI"];
-        $result = $scheme . "://" . $host . $requestUri;
+        $requestUri = isset($_SERVER["REQUEST_URI"]) ? wp_unslash($_SERVER["REQUEST_URI"]) : "/";
+        $result = esc_url_raw($origin . $requestUri);
         return $result;
     }
     
@@ -332,12 +346,18 @@ class iHomefinderStateManager
         $expireTime = time() + self::COOKIE_TIMEOUT;
         if(headers_sent()) {
             //WordPress does not buffer the response so we use JS to set cookies on shortcode requests because headers have already been sent
+            //Name and value are URL-encoded, as setcookie() does, and then JSON-encoded, so no request or remote data can
+            //close the script block. PHP URL-decodes $_COOKIE on read, so readers see the original value.
+            $cookie = wp_json_encode(
+                rawurlencode((string) $name) . "=" . rawurlencode((string) $value),
+                JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+            );
             $value = '
 				<script type="text/javascript">
 					(function() {
 						var expire = new Date();
 						expire.setSeconds(expire.getSeconds() + ' . self::COOKIE_TIMEOUT . ');
-						document.cookie = "' . $name . '=' . $value . '; expires=" + expire.toUTCString() + "; path=/";
+						document.cookie = ' . $cookie . ' + "; expires=" + expire.toUTCString() + "; path=/";
 					})();
 				</script>
 			';

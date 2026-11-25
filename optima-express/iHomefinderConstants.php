@@ -11,7 +11,7 @@ if (! defined('ABSPATH')) {
 interface iHomefinderConstants
 {
 
-    const VERSION = "9.0.2";
+    const VERSION = "9.0.3";
     const VERSION_NAME = "Optima Express";
     const EXTERNAL_URL = "www.idxhome.com/service/wordpress";
     //Control Panel sign-in pages (MAX-4708, D23); the test host is used only in a non-production environment

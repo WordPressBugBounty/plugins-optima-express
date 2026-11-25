@@ -22,18 +22,27 @@ class iHomefinderLogger
         return self::$instance;
     }
     
+    /**
+     * Debug logging needs WP_DEBUG, plus either the DEBUG constant or a site administrator who
+     * sent debug=true. A visitor's request flag alone never turns it on.
+     */
     private function isDebug()
     {
-        $debugValue = iHomefinderUtility::getInstance()->getRequestVar("debug");
-        $debug = false;
-        if ($debugValue === "true" || iHomefinderConstants::DEBUG) {
-            $debug = true;
+        if (!defined("WP_DEBUG") || !WP_DEBUG) {
+            return false;
         }
-        return $debug;
+        if (iHomefinderConstants::DEBUG) {
+            return true;
+        }
+        if (!function_exists("current_user_can") || !current_user_can("manage_options")) {
+            return false;
+        }
+        return iHomefinderUtility::getInstance()->getRequestVar("debug") === "true";
     }
-    
+
     /**
-     * Dumps messages to the screen if debugging on
+     * Writes messages to the PHP error log if debugging is on. Debug output never goes to the
+     * page, not even for an administrator.
      *
      * @param mixed $message The message to be logged
      *
@@ -42,8 +51,10 @@ class iHomefinderLogger
     public function debug($message)
     {
         if ($this->isDebug()) {
-            echo esc_html(microtime(true)) . ": ";
-            var_dump($message);
+            if (!is_string($message)) {
+                $message = print_r($message, true);
+            }
+            error_log("[Optima Express debug] " . microtime(true) . ": " . $message);
         }
     }
 }

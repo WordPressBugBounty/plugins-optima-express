@@ -37,12 +37,12 @@ class iHomefinderCacheUtility
         $result = null;
         if (self::CACHE_ENABLED) {
             $cacheKey = $this->getKey($key);
-            $this->logger->debug("get cached version cacheKey " . $cacheKey);
             $result = get_transient($cacheKey);
             if ($result === false) {
                 $result = null;
             }
-            $this->logger->debug($result);
+            // Never log the cached value: it is a whole upstream response, including the request URL.
+            $this->logger->debug("cache " . ($result === null ? "miss" : "hit") . " cacheKey " . $cacheKey);
         }
         return $result;
     }

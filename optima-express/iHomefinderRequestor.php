@@ -96,7 +96,8 @@ class iHomefinderRequestor
             
             $this->addParameter("leadCaptureSupport", true);
             $this->addParameter("phpStyle", true);
-            
+
+            $this->removeDebugParameter();
             $requestUrl = $this->utility->buildUrl($requestUrl, $this->getParameters());
             
             $ihfid = iHomefinderUrlFactory::getInstance()->getBaseUrl() . ";" . "WordpressPlugin";
@@ -244,7 +245,8 @@ class iHomefinderRequestor
         $this->addParameter("method", "handleRequest");
         $this->addParameter("viewType", "json");
         $this->addParameter("phpStyle", true);
-        
+        $this->removeDebugParameter();
+
         $requestArgs = array(
         "timeout" => "200",
         "body" => $this->getParameters(),
@@ -439,6 +441,22 @@ class iHomefinderRequestor
         return $this;
     }
     
+    /**
+     * Never forward a visitor's debug flag to the iHomefinder service, which returns internal
+     * error detail when it is set. Matched case-insensitively.
+     */
+    private function removeDebugParameter()
+    {
+        if (is_array($this->parameters)) {
+            foreach (array_keys($this->parameters) as $name) {
+                if (strtolower((string) $name) === "debug") {
+                    unset($this->parameters[$name]);
+                }
+            }
+        }
+        return $this;
+    }
+
     public function addParameters($parameters)
     {
         if (is_array($parameters)) {

@@ -128,6 +128,10 @@ abstract class iHomefinderAbstractVirtualPage implements iHomefinderVirtualPageI
     protected function getPreviousSearchLink()
     {
         $previousUrl = $this->stateManager->getLastSearchUrl();
+        if (!empty($previousUrl)) {
+            // The cookie is visitor-controlled: keep it only if it is an http(s) URL on this site.
+            $previousUrl = wp_validate_redirect(esc_url_raw(wp_unslash((string) $previousUrl)), "");
+        }
         $text = null;
         if (empty($previousUrl)) {
             $previousUrl = iHomefinderUrlFactory::getInstance()->getListingsSearchFormUrl(true);
@@ -139,7 +143,7 @@ abstract class iHomefinderAbstractVirtualPage implements iHomefinderVirtualPageI
         }
         $result = null;
         if (!empty($text) and !empty($previousUrl)) {
-            $result = "<a href=\"" . $previousUrl . "\">&lt;&nbsp;" . $text . "</a>";
+            $result = "<a href=\"" . esc_url($previousUrl) . "\">&lt;&nbsp;" . $text . "</a>";
         }
         return $result;
     }
